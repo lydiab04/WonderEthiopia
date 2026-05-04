@@ -97,6 +97,7 @@ export default function BusinessDetail() {
         // Note: we might need a dedicated public detail route if this one is protected
         const res = await fetch(`/api/businesses/${id}`);
         const json = await res.json();
+        console.log(json);
         
         if (json.data) {
           setBusiness(json.data);
@@ -391,10 +392,10 @@ export default function BusinessDetail() {
                   case "hotel":
                     router.push(`/booking/room_booking?id=${id}&price=${service.price}&name=${service.name}`)
                     break
-                  case "event":
+                  case "event_organizer":
                     router.push(`/booking/event_booking?id=${id}&price=${service.price}&name=${service.name}`)
                     break
-                  case "tour":
+                  case "tour_operator":
                     router.push(`/booking/tour_booking?id=${id}&price=${service.price}&name=${service.name}`)
                     break
                   default:
