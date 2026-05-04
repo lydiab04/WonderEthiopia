@@ -4,7 +4,7 @@ export interface IService extends Document {
   businessId: Types.ObjectId;
   name: string;
   description: string;
-  category: string;
+  category: string[];
   price: number;
   currency: string;
   images: string[];
@@ -36,8 +36,9 @@ const ServiceSchema = new Schema<IService>(
       required: [true, "Service description is required"],
     },
     category: {
-      type: String,
+      type: [String],
       required: true,
+      default: [],
     },
     price: {
       type: Number,

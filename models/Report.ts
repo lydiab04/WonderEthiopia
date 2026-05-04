@@ -5,7 +5,7 @@ export interface IReport extends Document {
   businessId: Types.ObjectId;
   reason: string;
   description: string;
-  status: "pending" | "under_review" | "action_taken" | "dismissed";
+  status: "pending" | "under_review" | "recommended_action" | "recommended_dismiss" | "resolved" | "dismissed";
   adminNotes: string;
   reviewedBy: Types.ObjectId | null;
   superAdminDecision: string;
@@ -44,7 +44,7 @@ const ReportSchema = new Schema<IReport>(
     },
     status: {
       type: String,
-      enum: ["pending", "under_review", "action_taken", "dismissed"],
+      enum: ["pending", "under_review", "recommended_action", "recommended_dismiss", "resolved", "dismissed"],
       default: "pending",
     },
     adminNotes: {

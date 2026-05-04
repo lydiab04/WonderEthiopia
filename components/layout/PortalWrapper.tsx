@@ -20,8 +20,13 @@ import {
   X,
   User,
   ChevronRight,
-  Bell
+  Calendar,
+  MessageSquare,
+  Loader2
 } from "lucide-react";
+import { pusherClient } from "@/lib/pusher-client";
+import { toast } from "react-toastify";
+import NotificationCenter from "@/components/admin/NotificationCenter";
 
 export default function PortalWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -33,6 +38,7 @@ export default function PortalWrapper({ children }: { children: React.ReactNode 
     pendingBusinesses: 0,
     recommendedBusinesses: 0,
     pendingReports: 0,
+    unreadDiscussionCount: 0,
   });
 
   useEffect(() => {
@@ -42,36 +48,125 @@ export default function PortalWrapper({ children }: { children: React.ReactNode 
 
   const fetchAdminStats = async () => {
     try {
-      const [bizRes, reportRes] = await Promise.all([
+      const [bizRes, reportRes, notifyRes] = await Promise.all([
         fetch("/api/businesses"),
         fetch("/api/reports"),
+        fetch("/api/notifications"),
       ]);
       const bizData = await bizRes.json();
       const reportData = await reportRes.json();
+      const notifyData = await notifyRes.json();
+
       const businesses = bizData.businesses || [];
       const reports = reportData.reports || [];
+      const notifications = notifyData.notifications || [];
 
       setStats({
         pendingBusinesses: businesses.filter((b: any) => b.status === "pending").length,
         recommendedBusinesses: businesses.filter((b: any) => b.status === "recommended_approve" || b.status === "recommended_reject").length,
         pendingReports: reports.filter((r: any) => r.status === "pending" || r.status === "under_review").length,
+        unreadDiscussionCount: notifications.filter((n: any) => !n.isRead && n.type === "internal_chat").length,
       });
     } catch (e) {}
   };
 
   useEffect(() => {
-    if (session?.user?.role === "super_admin" || session?.user?.role === "tourism_admin") {
+    if (session?.user?.role === "super_admin" || session?.user?.role === "tourism_admin" || session?.user?.role === "business_owner") {
       fetchAdminStats();
+
+      // Listen for global internal chat/notifications
+      let channel: any;
+      try {
+        if (process.env.NEXT_PUBLIC_PUSHER_KEY) {
+          const channelName = session.user.role === "business_owner" 
+            ? `admin-notifications-business_owner-${session.user.id}`
+            : `admin-notifications-${session.user.role}`;
+
+          channel = pusherClient.subscribe(channelName);
+          channel.bind("new-internal-message", (data: any) => {
+            toast.info(
+              <div className="flex flex-col gap-1">
+                <span className="font-black text-[10px] uppercase tracking-widest text-primary">New Notice: {data.senderName}</span>
+                <span className="text-[12px] font-medium text-foreground/60 italic">"{data.message}"</span>
+              </div>,
+              { position: "bottom-right", autoClose: 8000 }
+            );
+            fetchAdminStats();
+          });
+        }
+      } catch (e) {
+        console.error("Global notification subscription error:", e);
+      }
+
+      return () => {
+        if (channel) {
+          try {
+            const channelName = session.user.role === "business_owner" 
+              ? `admin-notifications-business_owner-${session.user.id}`
+              : `admin-notifications-${session.user.role}`;
+            pusherClient.unsubscribe(channelName);
+          } catch (e) {}
+        }
+      };
     }
   }, [session]);
 
   // Exclude landing page, login, register, and business registration from the portal layout
-  const excludedPaths = ["/", "/login", "/register", "/business"];
-  if (excludedPaths.includes(pathname) || !mounted) return <>{children}</>;
+  const excludedPaths = ["/", "/login", "/register", "/business", "/tourist/onboarding", "/setup-security"];
+  const [isOnboardingChecked, setIsOnboardingChecked] = useState(false);
+  const isExcluded = excludedPaths.includes(pathname);
+
+  useEffect(() => {
+    if (!mounted || isExcluded) return;
+    
+    if (session?.user?.needsPasswordChange && pathname !== "/setup-security") {
+      window.location.href = "/setup-security";
+      return;
+    }
+    
+    if (session?.user?.role === "tourist") {
+      checkOnboarding();
+    } else if (session?.user?.role) {
+      setIsOnboardingChecked(true);
+    }
+  }, [session, pathname, mounted, isExcluded]);
+
+  const checkOnboarding = async () => {
+    try {
+      const res = await fetch("/api/tourist/profile");
+      const data = await res.json();
+      if (!data.profile || !data.profile.isCompleted) {
+        window.location.href = "/tourist/onboarding";
+      } else {
+        setIsOnboardingChecked(true);
+      }
+    } catch (e) {
+      setIsOnboardingChecked(true);
+    }
+  };
+
+  if (!mounted || isExcluded) return <>{children}</>;
+
+  if (session?.user?.role === "tourist" && !isOnboardingChecked) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background gap-10 mesh-gradient-rich">
+        <div className="relative">
+          <div className="w-20 h-20 rounded-3xl bg-primary/10 border border-primary/20 flex items-center justify-center animate-pulse">
+            <Compass className="w-10 h-10 text-primary" />
+          </div>
+          <div className="absolute inset-0 bg-primary/20 blur-2xl -z-10" />
+        </div>
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 text-primary animate-spin" />
+          <span className="text-[10px] font-black uppercase tracking-[0.4em] text-foreground/20 italic font-sans">Initializing Explorer Axis...</span>
+        </div>
+      </div>
+    );
+  }
 
   const role = session?.user?.role || "tourist";
   const initials = session?.user?.name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
-  const isAdmin = role === "super_admin" || role === "tourism_admin";
+  const isNotificationEnabled = role === "super_admin" || role === "tourism_admin" || role === "business_owner";
 
   const getActions = () => {
     switch (role) {
@@ -89,11 +184,13 @@ export default function PortalWrapper({ children }: { children: React.ReactNode 
       case "business_owner":
         return [
           { label: "Service Profile", href: "/business/dashboard", icon: <Building2 className="w-5 h-5" />, count: 0 },
+          { label: "Compliance Records", href: "/business/reports", icon: <ClipboardList className="w-5 h-5" />, count: stats.pendingReports },
         ];
       default:
         return [
           { label: "Browse Services", href: "/discover/businesses", icon: <Globe className="w-5 h-5" />, count: 0 },
           { label: "My Destinations", href: "/discover/destinations", icon: <Compass className="w-5 h-5" />, count: 0 },
+          { label: "My Bookings", href: "/dashboard/bookings", icon: <Calendar className="w-5 h-5" />, count: 0 },
         ];
     }
   };
@@ -164,6 +261,8 @@ export default function PortalWrapper({ children }: { children: React.ReactNode 
            </div>
 
            <div className="flex items-center gap-4 md:gap-8 relative">
+              {isNotificationEnabled && <NotificationCenter />}
+              
               <button 
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
                 className="flex items-center gap-3 md:gap-8 group hover:opacity-80 transition-opacity outline-none"

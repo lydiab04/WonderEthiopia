@@ -41,6 +41,7 @@ export const authOptions: NextAuthOptions = {
               name: user.name,
               email: user.email,
               role: user.role,
+              needsPasswordChange: user.needsPasswordChange,
             };
           } catch (error) {
             console.error("Firebase Auth Error:", error);
@@ -77,6 +78,7 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           email: user.email,
           role: user.role,
+          needsPasswordChange: user.needsPasswordChange,
         };
       },
     }),
@@ -86,18 +88,28 @@ export const authOptions: NextAuthOptions = {
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session: updateSession }) {
       if (user) {
         token.id = user.id;
-        token.role = (user as { role: string }).role;
+        token.role = (user as any).role;
+        token.needsPasswordChange = (user as any).needsPasswordChange;
       }
+      
+      // Handle manual session updates (trigger: "update")
+      if (trigger === "update" && updateSession) {
+        if (updateSession.role) token.role = updateSession.role;
+        if (updateSession.needsPasswordChange !== undefined) {
+          token.needsPasswordChange = updateSession.needsPasswordChange;
+        }
+      }
+      
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        (session.user as { id: string; role: string }).id = token.id as string;
-        (session.user as { id: string; role: string }).role =
-          token.role as string;
+        (session.user as any).id = token.id as string;
+        (session.user as any).role = token.role as string;
+        (session.user as any).needsPasswordChange = token.needsPasswordChange as boolean;
       }
       return session;
     },

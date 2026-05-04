@@ -1,127 +1,102 @@
-import mongoose from "mongoose";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import dbConnect from "@/lib/mongodb";
 import Report from "@/models/Report";
+import Business from "@/models/Business";
 
-// GET - Get single report (Super Admin and Tourism Admin)
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { id } = await params;
-    const role = session.user.role;
-
-    if (role !== "tourism_admin" && role !== "super_admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    await dbConnect();
-
-    const report = await Report.findById(id)
-      .populate("reporterId", "name email")
-      .populate("businessId", "name")
-      .populate("reviewedBy", "name")
-      .populate("decidedBy", "name");
-
-    if (!report) {
-      return NextResponse.json({ error: "Report not found" }, { status: 404 });
-    }
-
-    return NextResponse.json({ report });
-  } catch (error: unknown) {
-    console.error("Error fetching report:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
-  }
-}
-
-// PATCH - Update report (FR-27: Tourism Admin reviews, FR-28: Super Admin final decision)
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
+    if (!session || !["tourism_admin", "super_admin"].includes(session.user.role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { id } = await params;
-    const role = session.user.role;
-
-    if (role !== "tourism_admin" && role !== "super_admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const body = await request.json();
+    const { status, adminNotes, superAdminDecision } = body;
 
     await dbConnect();
 
-    const body = await request.json();
-    const { action, notes } = body;
+    const update: any = {};
 
-    const report = await Report.findById(id);
+    // Tourism admin can set status and notes (triage)
+    if (status) {
+      update.status = status;
+      update.reviewedBy = session.user.id;
+    }
+    if (adminNotes !== undefined) update.adminNotes = adminNotes;
+
+    // Only super_admin can write final decision
+    if (session.user.role === "super_admin" && superAdminDecision !== undefined) {
+      update.superAdminDecision = superAdminDecision;
+      update.decidedBy = session.user.id;
+    }
+
+    const report = await Report.findByIdAndUpdate(
+      id,
+      { $set: update },
+      { new: true }
+    )
+      .populate("reporterId", "name email")
+      .populate("reviewedBy", "name")
+      .populate("decidedBy", "name")
+      .populate("businessId", "name ownerId");
+
     if (!report) {
-      return NextResponse.json(
-        { error: "Report not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Report not found" }, { status: 404 });
     }
 
-    // Tourism Admin reviews the report
-    if (role === "tourism_admin") {
-      if (!["under_review", "dismissed"].includes(action)) {
-        return NextResponse.json(
-          { error: "Tourism admin can set status to under_review or dismissed" },
-          { status: 400 }
-        );
+    // Handle Super Admin Notifications
+    if (session.user.role === "super_admin" && ["resolved", "dismissed"].includes(status)) {
+      const businessOwnerId = (report.businessId as any)?.ownerId;
+      
+      if (businessOwnerId) {
+        const { default: AppNotification } = await import("@/models/Notification");
+        let title = "";
+        let message = "";
+
+        if (status === "resolved") {
+          if (body.suspendBusiness) {
+            await Business.findByIdAndUpdate(report.businessId, {
+              $set: { isActive: false, status: "suspended" },
+            });
+            title = "CRITICAL: Business Suspended";
+            message = `Your business has been officially SUSPENDED following an investigation into a formal grievance. Super Admin Decision: "${superAdminDecision}". If you wish to appeal this decision, you must physically report to the central Tourism Authority office with your licensing documents.`;
+          } else {
+            title = "Warning: Grievance Resolved";
+            message = `A grievance against your business was reviewed and resolved. Super Admin Note: "${superAdminDecision}". Please strictly follow platform compliance guidelines to avoid future actions.`;
+          }
+        } else if (status === "dismissed") {
+          title = "Notice: Grievance Dismissed";
+          message = `A grievance filed against your business was reviewed and officially dismissed by the Super Admin. No action is required.`;
+        }
+
+        await AppNotification.create({
+          recipientRole: "business_owner",
+          recipientId: businessOwnerId,
+          title,
+          message,
+          type: "report_resolved",
+          relatedId: report._id,
+        });
+
+        try {
+          const { pusherServer } = await import("@/lib/pusher");
+          await pusherServer.trigger(`admin-notifications-business_owner-${businessOwnerId}`, "new-internal-message", {
+            senderName: "Integrity System",
+            message: title,
+          });
+        } catch (e) {}
       }
-
-      report.status = action;
-      report.adminNotes = notes || "";
-      report.reviewedBy = new mongoose.Types.ObjectId(session.user.id);
-      await report.save();
-
-      return NextResponse.json({
-        message: `Report ${action === "under_review" ? "marked for review" : "dismissed"}`,
-        report,
-      });
     }
 
-    // Super Admin takes final action
-    if (role === "super_admin") {
-      if (!["action_taken", "dismissed"].includes(action)) {
-        return NextResponse.json(
-          { error: "Super admin can set status to action_taken or dismissed" },
-          { status: 400 }
-        );
-      }
-
-      report.status = action;
-      report.superAdminDecision = notes || "";
-      report.decidedBy = new mongoose.Types.ObjectId(session.user.id);
-      await report.save();
-
-      return NextResponse.json({
-        message: `Report ${action === "action_taken" ? "action taken" : "dismissed"} by super admin`,
-        report,
-      });
-    }
-
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  } catch (error: unknown) {
+    return NextResponse.json({ success: true, report });
+  } catch (error) {
     console.error("Error updating report:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -92,54 +92,87 @@ export async function PATCH(
 
     // Super Admin can make final decisions
     if (role === "super_admin") {
-      if (!["approved", "rejected", "suspended"].includes(action)) {
+      if (!["approved", "rejected", "suspended", "unsuspend"].includes(action)) {
         return NextResponse.json(
-          { error: "Invalid action. Use: approved, rejected, or suspended" },
+          { error: "Invalid action. Use: approved, rejected, suspended, or unsuspend" },
           { status: 400 }
         );
       }
 
-      business.status = action;
+      const finalStatus = action === "unsuspend" ? "approved" : action;
+      business.status = finalStatus;
       business.decisionNote = note || "";
       business.decidedBy = new mongoose.Types.ObjectId(session.user.id);
 
-      if (action === "approved") {
-        // Super-admin registers the business (creates the account)
-        const temporaryPassword = Math.random().toString(36).slice(-8); // Generate random password
-        const hashedPassword = await bcrypt.hash(temporaryPassword, 12);
+      if (action === "unsuspend") {
+        business.isActive = true;
+      }
 
+      if (action === "approved") {
         // Check if user already exists
         let user = await User.findOne({ email: business.applicantEmail });
+        let newlyCreated = false;
+        let temporaryPassword = "";
+
         if (!user) {
+          // Super-admin registers the business (creates the account)
+          temporaryPassword = Math.random().toString(36).slice(-8); // Generate random password
+          const hashedPassword = await bcrypt.hash(temporaryPassword, 12);
+          
           user = await User.create({
             name: business.applicantName,
             email: business.applicantEmail,
             password: hashedPassword,
             role: "business_owner",
+            needsPasswordChange: true,
           });
+          newlyCreated = true;
+        } else {
+          // If user exists, ensure they have business_owner role (multi-role support or upgrade)
+          if (user.role !== "business_owner" && user.role !== "super_admin" && user.role !== "tourism_admin") {
+            user.role = "business_owner";
+            await user.save();
+          }
         }
 
         business.ownerId = user._id as Types.ObjectId;
 
         // REAL EMAIL SENDING
         try {
+          // Pass temporaryPassword only if newlyCreated, otherwise it remains empty string
           await sendApprovalEmail(business.applicantEmail, business.name, temporaryPassword);
-          console.log(`[REAL EMAIL SENT TO ${business.applicantEmail}] with credentials.`);
+          console.log(`[REAL EMAIL SENT TO ${business.applicantEmail}] ${newlyCreated ? "with credentials" : "notification only"}.`);
         } catch (emailError) {
           console.error("Failed to send approval email:", emailError);
-          // Still create the user and approve the business even if email fails - admins can see credentials elsewhere or reset password
-        }
-      } else if (action === "rejected") {
-        // REAL REJECTION EMAIL
-        try {
-          await sendRejectionEmail(business.applicantEmail, business.name, note || "Your application did not meet our requirements.");
-          console.log(`[REAL EMAIL SENT TO ${business.applicantEmail}] for rejection.`);
-        } catch (emailError) {
-          console.error("Failed to send rejection email:", emailError);
         }
       }
 
       await business.save();
+
+      // Notify Tourism Admin about the final decision
+      try {
+        await AppNotification.create({
+          recipientRole: "tourism_admin",
+          title: `Final Decision: ${action.charAt(0).toUpperCase() + action.slice(1)}`,
+          message: `Super Admin has ${action} the application for "${business.name}". Note: ${note || "No additional note."}`,
+          type: "business_status_update",
+          relatedId: business._id,
+        });
+
+        // Also notify the business owner if unsuspended
+        if (action === "unsuspend" && business.ownerId) {
+          await AppNotification.create({
+            recipientRole: "business_owner",
+            recipientId: business.ownerId,
+            title: "Registry Restored: Suspension Lifted",
+            message: `The central authority has lifted the suspension on "${business.name}" following an appeal review. You are now permitted to resume operations and take your business online.`,
+            type: "business_status_update",
+            relatedId: business._id,
+          });
+        }
+      } catch (notifyError) {
+        console.error("Failed to notify stakeholders:", notifyError);
+      }
 
       return NextResponse.json({
         message: `Business ${action} successfully`,

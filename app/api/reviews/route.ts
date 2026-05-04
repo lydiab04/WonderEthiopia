@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import dbConnect from "@/lib/mongodb";
 import Review from "@/models/Review";
+import Service from "@/models/Service";
+import Booking from "@/models/Booking";
 
 // GET - List reviews for a specific target (destination or business)
 export async function GET(request: Request) {
@@ -20,9 +22,20 @@ export async function GET(request: Request) {
 
     await dbConnect();
 
-    const reviews = await Review.find({ targetId, targetType })
-      .populate("userId", "name role")
-      .sort({ createdAt: -1 });
+    let reviews;
+
+    if (targetType === "business") {
+      const services = await Service.find({ businessId: targetId }).select("_id");
+      const serviceIds = services.map(s => s._id);
+      
+      reviews = await Review.find({ targetId: { $in: serviceIds }, targetType: "service" })
+        .populate("userId", "name role")
+        .sort({ createdAt: -1 });
+    } else {
+      reviews = await Review.find({ targetId, targetType })
+        .populate("userId", "name role")
+        .sort({ createdAt: -1 });
+    }
 
     const avgRating =
       reviews.length > 0
@@ -60,6 +73,21 @@ export async function POST(request: Request) {
         { error: "target_id, target_type, and rating are required" },
         { status: 400 }
       );
+    }
+
+    if (target_type === "service") {
+      const hasBooked = await Booking.findOne({
+        userId: session.user.id,
+        serviceId: target_id,
+        status: { $in: ["confirmed", "completed", "pending"] }
+      });
+
+      if (!hasBooked) {
+        return NextResponse.json(
+          { error: "You can only review services you have successfully booked." },
+          { status: 403 }
+        );
+      }
     }
 
     // Check if the user has already reviewed this target

@@ -106,7 +106,7 @@ export default function AdminUsersPage() {
 
   return (
     <div className="bg-background text-foreground font-sans">
-      <main className="relative z-10 max-w-7xl mx-auto px-6 py-10 lg:py-20 text-center lg:text-left">
+      <main className="relative z-10 max-w-7xl mx-auto px-3 md:px-4 lg:px-5 py-10 lg:py-20 text-center lg:text-left">
         {/* Title & Filters */}
         <div className="animate-fade-in mb-16 px-4">
           <div className="max-w-4xl mb-12">
@@ -203,7 +203,7 @@ export default function AdminUsersPage() {
                       <select
                         disabled={true}
                         value={user.role}
-                        className="w-full bg-foreground/[0.01] border border-foreground/[0.03] text-[11px] font-black uppercase tracking-widest rounded-2xl px-6 py-4 appearance-none focus:outline-none transition-all cursor-not-allowed"
+                        className="w-full bg-foreground/[0.01] border border-foreground/[0.03] text-[11px] font-black uppercase tracking-widest rounded-2xl px-3 md:px-4 lg:px-5 py-4 appearance-none focus:outline-none transition-all cursor-not-allowed"
                       >
                         <option value="tourist">Explorer</option>
                         <option value="business_owner">Business Owner</option>

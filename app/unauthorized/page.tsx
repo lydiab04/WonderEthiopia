@@ -8,7 +8,7 @@ export default function UnauthorizedPage() {
   useEffect(() => setMounted(true), []);
 
   return (
-    <div className="min-h-screen bg-[#050505] flex items-center justify-center px-6">
+    <div className="min-h-screen bg-[#050505] flex items-center justify-center px-3 md:px-4 lg:px-5">
       {/* Ambient glow */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-red-500/[0.04] rounded-full blur-[150px]" />
@@ -49,13 +49,13 @@ export default function UnauthorizedPage() {
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
           <Link
             href="/"
-            className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-600 text-black text-[13px] font-bold rounded-full hover:shadow-lg hover:shadow-amber-500/20 transition-all duration-300"
+            className="w-full sm:w-auto px-3 md:px-4 lg:px-5 py-3 bg-gradient-to-r from-amber-500 to-orange-600 text-black text-[13px] font-bold rounded-full hover:shadow-lg hover:shadow-amber-500/20 transition-all duration-300"
           >
             Go Home
           </Link>
           <Link
             href="/dashboard"
-            className="w-full sm:w-auto px-6 py-3 border border-white/[0.08] text-[13px] font-medium text-gray-400 rounded-full hover:text-white hover:border-white/[0.15] transition-all duration-300"
+            className="w-full sm:w-auto px-3 md:px-4 lg:px-5 py-3 border border-white/[0.08] text-[13px] font-medium text-gray-400 rounded-full hover:text-white hover:border-white/[0.15] transition-all duration-300"
           >
             Back to Dashboard
           </Link>

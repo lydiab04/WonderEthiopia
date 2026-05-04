@@ -61,7 +61,7 @@ export default function SettingsPage() {
   );
 
   return (
-    <main className="max-w-5xl mx-auto px-6 py-10 lg:py-20 animate-fade-in">
+    <main className="max-w-5xl mx-auto px-3 md:px-4 lg:px-5 py-10 lg:py-20 animate-fade-in">
       <div className="flex flex-col md:flex-row items-start justify-between gap-12 mb-16">
         <div className="max-w-2xl">
           <div className="flex items-center gap-3 mb-6">
@@ -181,7 +181,7 @@ export default function SettingsPage() {
                           const next = active ? cats.filter((c:any) => c !== val) : [...cats, val];
                           setProfile({...profile, preferences: {...profile.preferences, categories: next}});
                         }}
-                        className={`px-6 py-2.5 rounded-full text-[10px] font-bold transition-all ${
+                        className={`px-3 md:px-4 lg:px-5 py-2.5 rounded-full text-[10px] font-bold transition-all ${
                           active ? "bg-primary/20 text-primary border border-primary/20" : "bg-white text-foreground/30 border border-foreground/5"
                         }`}
                       >

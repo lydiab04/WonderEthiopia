@@ -4,7 +4,7 @@ export interface IReview extends Document {
   userId?: Types.ObjectId;
   userName: string; // fallback in case user isn't logged in? Or just use ref. Wait, the source used string.
   targetId: Types.ObjectId;
-  targetType: "destination" | "business";
+  targetType: "destination" | "business" | "service";
   rating: number;
   comment: string;
   createdAt: Date;
@@ -26,7 +26,7 @@ const ReviewSchema = new Schema<IReview>(
     },
     targetType: {
       type: String,
-      enum: ["destination", "business"],
+      enum: ["destination", "business", "service"],
       required: true,
     },
     rating: {

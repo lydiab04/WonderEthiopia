@@ -11,10 +11,11 @@ interface Business {
   _id: string;
   name: string;
   description: string;
-  category: string;
+  category: string | string[];
   location: { city: string; region: string };
   contactPhone: string;
   profilePicture?: string;
+  avgRating?: number | null;
 }
 
 const categoryImages: Record<string, string> = {
@@ -22,8 +23,6 @@ const categoryImages: Record<string, string> = {
   tour_operator: "/simien-mountains.png",
   car_rental: "/restaurant.png",
   event_organizer: "/coffee-ceremony.png",
-  restaurant: "/restaurant.png",
-  other: "/lalibela.png",
 };
 
 export default function LandingPage() {
@@ -42,19 +41,23 @@ export default function LandingPage() {
           fetch("/api/businesses/public?limit=3", { cache: 'no-store' }),
           fetch("/api/destinations", { cache: 'no-store' })
         ]);
-        
-        const bizData = await bizRes.json();
-        const destData = await destRes.json();
 
-        setBusinesses(bizData.businesses?.slice(0, 3) || []);
-        setDestinations(destData.slice(0, 3) || []);
+        if (bizRes.ok) {
+          const bizData = await bizRes.json();
+          setBusinesses(bizData.businesses || []);
+        }
+
+        if (destRes.ok) {
+          const destData = await destRes.json();
+          setDestinations(Array.isArray(destData) ? destData.slice(0, 3) : []);
+        }
       } catch (error) {
         console.error("Failed to fetch landing page data:", error);
       } finally {
         setLoading(false);
       }
     }
-    
+
     // Initial fetch
     fetchData();
 
@@ -64,7 +67,7 @@ export default function LandingPage() {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50);
     };
-    
+
     window.addEventListener("scroll", handleScroll);
     return () => {
       window.removeEventListener("scroll", handleScroll);
@@ -83,10 +86,13 @@ export default function LandingPage() {
     <div className="min-h-screen bg-background text-foreground transition-all duration-500 font-sans selection:bg-primary/10 selection:text-primary">
       {/* Navigation */}
       <nav
-        className={`fixed top-0 w-full z-50 transition-all duration-500 ${isScrolled ? "py-4 glass shadow-sm" : "py-8 bg-transparent"
-          }`}
+        className={`fixed top-0 w-full z-50 transition-all duration-[800ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${
+          isScrolled 
+            ? "py-4 floating-glass border-b border-white/60 shadow-[0_8px_32px_rgba(27,38,59,0.04)]" 
+            : "py-8 bg-transparent border-b border-transparent shadow-none"
+        }`}
       >
-        <div className="max-w-7xl mx-auto px-6 h-18 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-3 md:px-4 lg:px-5 h-18 flex items-center justify-between">
           <Link
             href="/"
             className="text-xl font-bold tracking-tighter text-primary flex items-center gap-2"
@@ -124,7 +130,7 @@ export default function LandingPage() {
               {session ? (
                 <Link
                   href="/dashboard"
-                  className="px-6 py-2.5 bg-primary text-white text-[13px] font-semibold rounded-full hover:bg-primary-hover shadow-lg shadow-primary/20 transition-all duration-300 active:scale-95"
+                  className="px-3 md:px-4 lg:px-5 py-2.5 bg-primary text-white text-[13px] font-semibold rounded-full hover:bg-primary-hover shadow-lg shadow-primary/20 transition-all duration-300 active:scale-95"
                 >
                   My Dashboard
                 </Link>
@@ -138,14 +144,14 @@ export default function LandingPage() {
                   </Link>
                   <Link
                     href="/register"
-                    className="px-6 py-2.5 bg-foreground text-background text-[13px] font-semibold rounded-full hover:bg-foreground/90 transition-all duration-300 active:scale-95"
+                    className="px-3 md:px-4 lg:px-5 py-2.5 bg-foreground text-background text-[13px] font-semibold rounded-full hover:bg-foreground/90 transition-all duration-300 active:scale-95"
                   >
                     Join Us
                   </Link>
                 </>
               )}
             </div>
-            <button 
+            <button
               className="md:hidden p-2 text-foreground"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
@@ -171,33 +177,33 @@ export default function LandingPage() {
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/20 to-background" />
         </div>
 
-        <div className="relative z-10 text-center max-w-5xl px-6">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-8 text-[10px] font-bold tracking-[0.3em] text-primary uppercase bg-primary/10 backdrop-blur-md rounded-full animate-fade-in border border-primary/20">
+        <div className="relative z-10 text-center max-w-6xl px-3 md:px-4 lg:px-5">
+          <div className="inline-flex items-center gap-3 px-3 md:px-4 lg:px-5 py-2 mb-10 text-[10px] font-black tracking-[0.4em] text-primary uppercase bg-white/10 floating-glass rounded-full animate-fade-in">
             Discover the Land of Origins
           </div>
 
-          <h1 className="text-6xl sm:text-7xl md:text-[100px] font-bold mb-8 tracking-[-0.04em] leading-[0.9] text-foreground animate-slide-up">
+          <h1 className="text-7xl sm:text-8xl md:text-[140px] font-black mb-12 tracking-tightest leading-[0.8] text-foreground animate-slide-up">
             EXPLORE THE <br />
             <span className="text-primary italic font-light">ETHIOPIAN</span> SPIRIT
           </h1>
 
-          <p className="text-lg md:text-xl text-foreground/60 mb-12 max-w-2xl mx-auto font-medium leading-relaxed animate-slide-up delay-1">
+          <p className="text-xl md:text-2xl text-foreground/50 mb-16 max-w-3xl mx-auto font-medium leading-relaxed animate-slide-up delay-1 text-balance">
             Experience the majestic Simien Mountains, ancient wonders, and the vibrant cultural tapestry of a nation with 3,000 years of history.
           </p>
 
           {/* Search Bar */}
-          <div className="max-w-3xl mx-auto glass p-3 rounded-2xl flex flex-col sm:flex-row gap-2 animate-slide-up delay-2 shadow-xl shadow-primary/5">
-            <div className="flex-1 flex items-center px-4 gap-3 border-r border-foreground/10 mb-2 sm:mb-0">
-              <Search className="w-5 h-5 text-primary/60" />
+          <div className="max-w-4xl mx-auto floating-glass p-4 rounded-[32px] flex flex-col sm:flex-row gap-4 animate-slide-up delay-2 shadow-premium">
+            <div className="flex-[1.5] flex items-center px-3 md:px-4 lg:px-5 gap-4 border-r border-foreground/5 mb-2 sm:mb-0">
+              <Search className="w-6 h-6 text-primary" />
               <input
                 type="text"
                 placeholder="Where to next?"
-                className="w-full bg-transparent border-none focus:ring-0 text-sm font-medium placeholder:text-foreground/30 py-3"
+                className="w-full bg-transparent border-none focus:ring-0 text-base font-bold placeholder:text-foreground/20 py-4 outline-none"
               />
             </div>
-            <div className="flex-1 flex items-center px-4 gap-3 border-r border-foreground/10 mb-2 sm:mb-0">
-              <MapPin className="w-5 h-5 text-primary/60" />
-              <select className="w-full bg-transparent border-none focus:ring-0 text-sm font-medium text-foreground/70 py-3 appearance-none">
+            <div className="flex-1 flex items-center px-3 md:px-4 lg:px-5 gap-4 border-r border-foreground/5 mb-2 sm:mb-0">
+              <MapPin className="w-6 h-6 text-primary" />
+              <select className="w-full bg-transparent border-none focus:ring-0 text-base font-bold text-foreground/60 py-4 appearance-none outline-none">
                 <option>All Regions</option>
                 <option>Amhara</option>
                 <option>Oromia</option>
@@ -205,8 +211,8 @@ export default function LandingPage() {
                 <option>Afar</option>
               </select>
             </div>
-            <button className="px-8 py-3 bg-primary text-white text-sm font-bold rounded-xl hover:bg-primary-hover transition-all active:scale-95 shadow-md shadow-primary/30">
-              Search Destination
+            <button className="px-12 py-4 bg-primary text-white text-[13px] font-black uppercase tracking-widest rounded-2xl hover:bg-primary-hover transition-all active:scale-95 shadow-premium">
+              Begin Discovery
             </button>
           </div>
         </div>
@@ -214,44 +220,45 @@ export default function LandingPage() {
 
       {/* Top Destinations */}
       <section id="destinations" className="py-32 bg-surface-elevated/30">
-        <div className="max-w-7xl mx-auto px-6">
+        <div className="max-w-7xl mx-auto px-3 md:px-4 lg:px-5">
           <div className="flex flex-col sm:flex-row items-end justify-between mb-20 gap-8">
             <div className="max-w-xl">
-               <span className="text-[10px] font-bold tracking-[0.3em] uppercase text-primary mb-4 block">Legendary Landmarks</span>
-               <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-6">Imperial Destinations</h2>
-               <p className="text-foreground/40 font-medium italic">Discover the ancient soul of Ethiopia through its most iconic heritage sites.</p>
+              <span className="text-[10px] font-bold tracking-[0.3em] uppercase text-primary mb-4 block">Legendary Landmarks</span>
+              <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-6">Imperial Destinations</h2>
+              <p className="text-foreground/40 font-medium italic">Discover the ancient soul of Ethiopia through its most iconic heritage sites.</p>
             </div>
             <Link href="/discover/destinations" className="hidden sm:flex items-center gap-3 px-8 py-4 bg-white rounded-2xl text-[11px] font-black uppercase text-foreground/40 hover:text-primary transition-all shadow-xl shadow-foreground/5 relative group">
-               View Full Atlas <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              View Full Atlas <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
             {destinations.length > 0 ? (
               destinations.map((dest: any) => (
-                <div key={dest._id} className="group relative h-[450px] rounded-[40px] overflow-hidden shadow-2xl shadow-primary/5 cursor-pointer">
-                   <Image 
-                     src={dest.images?.[0] || "/lalibela.png"}
-                     alt={dest.name}
-                     fill
-                     className="object-cover group-hover:scale-110 transition-all duration-700"
-                   />
-                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
-                   <div className="absolute bottom-0 left-0 w-full p-10 text-white translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
-                      <div className="flex items-center gap-2 mb-3 text-[9px] font-black tracking-widest uppercase text-primary">
-                         <MapPin className="w-3 h-3" /> {dest.region}
-                      </div>
-                      <h3 className="text-3xl font-bold mb-4 tracking-tight">{dest.name}</h3>
-                      <p className="text-xs font-medium opacity-0 group-hover:opacity-60 transition-opacity duration-500 line-clamp-2 italic mb-6">"{dest.description}"</p>
-                      <Link href={status === "authenticated" ? `/discover/destinations/${dest._id}` : "/login"} className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/50 hover:text-primary transition-colors">
-                         Begin Discovery <ArrowRight className="w-3 h-3" />
-                      </Link>
-                   </div>
+                <div key={dest._id} className="group relative h-[550px] rounded-[56px] overflow-hidden shadow-premium cursor-pointer hover-lift">
+                  <Image
+                    src={dest.images?.[0] || "/lalibela.png"}
+                    alt={dest.name}
+                    fill
+                    className="object-cover group-hover:scale-110 transition-all duration-1000"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent opacity-80 group-hover:opacity-100 transition-opacity" />
+                  <div className="absolute bottom-0 left-0 w-full p-12 text-white translate-y-6 group-hover:translate-y-0 transition-transform duration-700">
+                    <div className="flex items-center gap-3 mb-4 text-[10px] font-black tracking-[0.3em] uppercase text-primary">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                      {dest.region}
+                    </div>
+                    <h3 className="text-4xl font-black mb-6 tracking-tightest leading-none">{dest.name}</h3>
+                    <p className="text-sm font-medium opacity-0 group-hover:opacity-70 transition-opacity duration-700 line-clamp-2 italic mb-10 text-balance">"{dest.description}"</p>
+                    <Link href={status === "authenticated" ? `/discover/destinations/${dest._id}` : "/login"} className="inline-flex items-center gap-4 text-[11px] font-black uppercase tracking-[0.3em] text-white/50 hover:text-primary transition-all group/btn">
+                      Explore Artifact <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-2 transition-transform" />
+                    </Link>
+                  </div>
                 </div>
               ))
             ) : (
               [1, 2, 3].map(n => (
-                <div key={n} className="h-[450px] rounded-[40px] bg-surface animate-shimmer" />
+                <div key={n} className="h-[550px] rounded-[56px] shadow-premium bg-white/5 animate-shimmer" />
               ))
             )}
           </div>
@@ -260,7 +267,7 @@ export default function LandingPage() {
 
       {/* Trust & Quality Section */}
       <section className="py-32 border-y border-foreground/5 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-6">
+        <div className="max-w-7xl mx-auto px-3 md:px-4 lg:px-5">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
             {[
               { icon: <Shield className="w-6 h-6" />, title: "Verified Partners", desc: "Every operator is manually vetted by our tourism office." },
@@ -280,7 +287,7 @@ export default function LandingPage() {
 
       {/* Featured Businesses */}
       <section id="partners" className="py-32 relative">
-        <div className="max-w-7xl mx-auto px-6">
+        <div className="max-w-7xl mx-auto px-3 md:px-4 lg:px-5">
           <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between mb-16 gap-6">
             <div className="max-w-xl">
               <span className="text-[10px] font-bold tracking-[0.3em] uppercase text-primary mb-4 block">Hand-Picked Agencies</span>
@@ -304,60 +311,56 @@ export default function LandingPage() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
               {businesses.map((biz) => (
                 <div
                   key={biz._id}
-                  className="group bg-surface rounded-[40px] p-4 card-hover overflow-hidden shadow-xl shadow-foreground/5 border border-foreground/[0.03]"
+                  className="group floating-glass rounded-[48px] p-6 hover-lift overflow-hidden shadow-premium"
                 >
-                  <div className="relative h-64 rounded-[32px] overflow-hidden mb-6 shadow-inner">
+                  <div className="relative h-80 rounded-[40px] overflow-hidden mb-8 shadow-inner">
                     <Image
-                      src={biz.profilePicture || categoryImages[biz.category] || "/lalibela.png"}
+                      src={biz.profilePicture || 
+                        (Array.isArray(biz.category) ? categoryImages[biz.category[0]] : categoryImages[biz.category]) || 
+                        "/lalibela.png"}
                       alt={biz.name}
                       fill
-                      className="object-cover group-hover:scale-110 transition-transform duration-700"
+                      className="object-cover group-hover:scale-110 transition-transform duration-1000"
                     />
-                    <div className="absolute top-4 right-4 px-4 py-1.5 glass rounded-full text-[9px] font-black tracking-widest uppercase">
-                      {biz.category.replace("_", " ")}
+                    <div className="absolute top-6 right-6 px-5 py-2 glass rounded-full text-[10px] font-black tracking-[0.2em] uppercase text-foreground">
+                      {Array.isArray(biz.category) 
+                        ? biz.category[0].replace("_", " ")
+                        : biz.category.replace("_", " ")}
                     </div>
                   </div>
                   <div className="px-4 pb-4">
-                    <div className="flex items-start justify-between mb-3">
-                      <h3 className="text-xl font-bold text-foreground group-hover:text-primary transition-colors pr-2">
+                    <div className="flex items-start justify-between mb-4">
+                      <h3 className="text-2xl font-black text-foreground group-hover:text-primary transition-colors pr-2 tracking-tightest leading-none">
                         {biz.name}
                       </h3>
-                      <div className="flex items-center gap-1 text-[12px] font-bold text-primary">
-                        <Star className="w-3.5 h-3.5 fill-current" />
-                        5.0
+                      <div className="flex items-center gap-1.5 text-[13px] font-black text-primary">
+                        <Star className={`w-4 h-4 ${biz.avgRating ? "fill-current" : "opacity-50"}`} />
+                        {biz.avgRating ? biz.avgRating.toFixed(1) : <span className="italic text-foreground/40 font-medium">New</span>}
                       </div>
                     </div>
-                    <p className="text-sm text-foreground/50 mb-8 line-clamp-2 leading-relaxed font-medium">
-                      {biz.description}
+                    <p className="text-[15px] text-foreground/40 mb-10 line-clamp-2 leading-relaxed font-medium italic">
+                      "{biz.description}"
                     </p>
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-foreground/30 flex items-center gap-2 uppercase tracking-wider">
-                        <MapPin className="w-3 h-3" />
+                      <span className="text-[10px] font-black text-foreground/20 flex items-center gap-3 uppercase tracking-widest">
+                        <div className="w-1.5 h-1.5 rounded-full bg-foreground/10" />
                         {biz.location.city}
                       </span>
                       <button
                         onClick={() => {
                           if (status === "authenticated") {
-                            // Already signed in
-                            if (session?.user?.role === "tourist") {
-                              router.push("/dashboard");
-                            } else if (session?.user?.role === "tourism_admin") {
-                              router.push("/tourism-admin/businesses");
-                            } else {
-                              router.push("/dashboard");
-                            }
+                            router.push("/dashboard");
                           } else {
-                            // First time sign-in: direct to Discovery Hub after login
                             router.push("/login?callbackUrl=" + encodeURIComponent("/discover/businesses"));
                           }
                         }}
-                        className="w-16 h-16 rounded-[28px] bg-foreground text-background flex items-center justify-center group-hover:bg-primary transition-all duration-500 shadow-2xl shadow-black/10 active:scale-90"
+                        className="w-20 h-20 rounded-[32px] bg-foreground text-background flex items-center justify-center hover:bg-primary transition-all duration-700 shadow-premium active:scale-90"
                       >
-                        <ChevronRight className="w-8 h-8" />
+                        <ArrowRight className="w-8 h-8 -rotate-45 group-hover:rotate-0 transition-transform" />
                       </button>
                     </div>
                   </div>
@@ -369,7 +372,7 @@ export default function LandingPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-32 px-6">
+      <section className="py-32 px-3 md:px-4 lg:px-5">
         <div className="max-w-7xl mx-auto relative overflow-hidden rounded-[50px] shadow-2xl">
           <div className="absolute inset-0 bg-primary/95" />
           <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-white/10 rounded-full blur-[100px] -mr-40 -mt-40" />
@@ -393,7 +396,7 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="bg-surface-elevated pt-24 pb-12">
-        <div className="max-w-7xl mx-auto px-6">
+        <div className="max-w-7xl mx-auto px-3 md:px-4 lg:px-5">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-16 mb-20">
             <div className="col-span-1 md:col-span-2">
               <Link href="/" className="text-2xl font-bold text-primary tracking-tighter mb-8 block">WONDER ETHIOPIA</Link>

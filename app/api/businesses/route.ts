@@ -27,9 +27,8 @@ export async function GET(request: Request) {
       // Tourism admins can see everything or apply filters
       filter = status && status !== "all" ? { status } : {};
     } else if (role === "super_admin") {
-      // Super admins CANNOT see pending applications (unless they are debugging intentionally)
-      // Usually they see recommended, approved, rejected, suspended
-      filter = status && status !== "all" ? { status } : { status: { $ne: "pending" } };
+      // Super admins see all businesses; status filter applied if provided
+      filter = status && status !== "all" ? { status } : {};
     } else {
       // Tourists only see approved businesses
       filter = { status: "approved" };

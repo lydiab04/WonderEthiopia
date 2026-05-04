@@ -12,20 +12,27 @@ export async function POST(request: Request) {
 
     const data: Record<string, any> = {};
     formData.forEach((value, key) => {
-      if (!key.startsWith("file_")) {
+      if (!key.startsWith("file_") && key !== "category") {
         data[key] = value;
       }
     });
+
+    const categories = formData.getAll("category") as string[];
+    data.category = categories;
 
     const contactEmail = formData.get("contactEmail") as string;
     const applicantName = formData.get("applicantName") as string;
 
     // Required fields check
-    const required = ["applicantName", "name", "category", "contactEmail", "permitNumber"];
+    const required = ["applicantName", "name", "contactEmail", "permitNumber"];
     for (const f of required) {
       if (!formData.get(f)) {
         return NextResponse.json({ error: `Missing required field: ${f}` }, { status: 400 });
       }
+    }
+
+    if (!categories || categories.length === 0) {
+      return NextResponse.json({ error: "At least one business category is required" }, { status: 400 });
     }
 
     await dbConnect();
@@ -86,7 +93,7 @@ export async function POST(request: Request) {
       applicantEmail: contactEmail, // Map contactEmail to applicantEmail
       name: data.name,
       description: data.description || "",
-      category: data.category,
+      category: categories,
       location: {
         region: data.region || "",
         city: data.city || "",
@@ -104,7 +111,7 @@ export async function POST(request: Request) {
     await AppNotification.create({
       recipientRole: "tourism_admin",
       title: "New Business Application",
-      message: `A new registration for "${newBusiness.name}" (${data.category}) has been submitted.`,
+      message: `A new registration for "${newBusiness.name}" (${categories.join(", ")}) has been submitted.`,
       type: "business_registration",
       relatedId: newBusiness._id,
     });

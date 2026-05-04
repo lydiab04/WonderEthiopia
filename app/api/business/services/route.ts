@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import dbConnect from "@/lib/mongodb";
 import Service from "@/models/Service";
 import Business from "@/models/Business";
+import Review from "@/models/Review";
 
 export async function GET() {
   try {
@@ -16,8 +17,19 @@ export async function GET() {
     const business = await Business.findOne({ ownerId: session.user.id });
     if (!business) return NextResponse.json({ services: [] });
 
-    const services = await Service.find({ businessId: business._id });
-    return NextResponse.json({ services });
+    const services = await Service.find({ businessId: business._id }).lean();
+    const serviceIds = services.map(s => s._id);
+    const reviews = await Review.find({ targetId: { $in: serviceIds }, targetType: "service" });
+
+    const enrichedServices = services.map(s => {
+      const serviceReviews = reviews.filter(r => String(r.targetId) === String(s._id));
+      const avgRating = serviceReviews.length > 0
+        ? serviceReviews.reduce((sum, r) => sum + r.rating, 0) / serviceReviews.length
+        : null;
+      return { ...s, avgRating };
+    });
+
+    return NextResponse.json({ services: enrichedServices });
   } catch (error) {
     return NextResponse.json({ error: "Failed to fetch services" }, { status: 500 });
   }

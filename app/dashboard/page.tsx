@@ -1,6 +1,7 @@
 "use client";
 
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { 
@@ -28,6 +29,7 @@ interface Stats {
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
+  const router = useRouter();
   const [stats, setStats] = useState<Stats>({
     totalBusinesses: 0,
     pendingBusinesses: 0,
@@ -36,7 +38,6 @@ export default function DashboardPage() {
     pendingReports: 0,
   });
   const [loadingStats, setLoadingStats] = useState(false);
-
   useEffect(() => {
     if (session?.user?.role === "super_admin" || session?.user?.role === "tourism_admin") {
       fetchAdminStats();
@@ -105,9 +106,12 @@ export default function DashboardPage() {
   const config = getRoleConfig();
 
   return (
-    <main className="p-6 md:p-14 lg:p-20 relative max-w-screen-2xl mx-auto w-full min-h-full">
+    <main className="min-h-screen mesh-gradient-rich animate-fade-in relative noise-overlay">
        {/* Ambient Backgrounds */}
-       <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-primary/[0.04] rounded-full blur-[150px] -mr-40 -mt-40 pointer-events-none opacity-50" />
+       <div className="absolute top-0 right-0 w-[1000px] h-[1000px] bg-primary/[0.04] rounded-full blur-[180px] -mr-60 -mt-60 pointer-events-none opacity-50" />
+       <div className="absolute bottom-0 left-0 w-[800px] h-[800px] bg-secondary/[0.03] rounded-full blur-[160px] -ml-40 -mb-40 pointer-events-none opacity-30" />
+
+       <div className="p-6 md:p-14 lg:p-24 relative max-w-screen-2xl mx-auto w-full z-10">
 
        {/* Breadcrumbs */}
        <div className="flex items-center gap-3 mb-10 text-[10px] font-black uppercase tracking-widest text-foreground/20 animate-fade-in relative z-10">
@@ -158,46 +162,46 @@ export default function DashboardPage() {
           <div className="xl:col-span-8 space-y-10">
              {isAdmin && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-slide-up delay-1">
-                   {[
-                     { label: "Total Partners", value: stats.totalBusinesses, icon: <Building2 />, trend: "+4 this month" },
-                     { label: "Active Grievances", value: stats.totalReports, icon: <AlertCircle />, trend: "Needs triage" },
-                     { label: "Registry Health", value: "98.4%", icon: <ShieldCheck />, trend: "Consolidated" },
-                   ].map((card, i) => (
-                     <div key={i} className="bg-white p-8 rounded-[40px] border border-foreground/[0.03] shadow-xl shadow-foreground/5 hover:border-primary/20 transition-all group">
-                        <div className="w-12 h-12 rounded-2xl bg-primary/5 text-primary flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                           {card.icon}
-                        </div>
-                        <div className="text-5xl font-black text-foreground tracking-tighter mb-1">{card.value}</div>
-                        <div className="flex items-center justify-between">
-                           <p className="text-[11px] font-black text-foreground/20 uppercase tracking-widest">{card.label}</p>
-                           <span className="text-[9px] font-black text-primary uppercase">{card.trend}</span>
-                        </div>
-                     </div>
-                   ))}
+                    {[
+                      { label: "Total Partners", value: stats.totalBusinesses, icon: <Building2 className="w-6 h-6" />, trend: "+4 this quarter" },
+                      { label: "Active Grievances", value: stats.totalReports, icon: <AlertCircle className="w-6 h-6" />, trend: "Protocol A1" },
+                      { label: "Registry Health", value: "98.4%", icon: <ShieldCheck className="w-6 h-6" />, trend: "Consolidated" },
+                    ].map((card, i) => (
+                      <div key={i} className="floating-glass p-10 rounded-[56px] shadow-premium hover-lift group">
+                         <div className="w-16 h-16 rounded-[24px] bg-primary/5 text-primary flex items-center justify-center mb-8 group-hover:scale-110 transition-transform duration-500 shadow-inner">
+                            {card.icon}
+                         </div>
+                         <div className="text-6xl font-black text-foreground tracking-tightest mb-4 leading-none">{card.value}</div>
+                         <div className="flex items-center justify-between">
+                            <p className="text-[11px] font-black text-foreground/20 uppercase tracking-[0.2em]">{card.label}</p>
+                            <span className="text-[10px] font-black text-primary uppercase tracking-widest">{card.trend}</span>
+                         </div>
+                      </div>
+                    ))}
                 </div>
              )}
 
              {/* Module Tiles */}
              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 animate-slide-up delay-2">
                 {config.actions.map((action, i) => (
-                  <Link key={action.href} href={action.href} className="bg-white rounded-[50px] p-12 border border-foreground/[0.03] shadow-2xl shadow-foreground/5 group hover:shadow-primary/5 transition-all overflow-hidden relative">
-                     <div className="absolute top-0 right-0 p-8 text-primary/[0.03] scale-[2] group-hover:rotate-12 transition-transform duration-700">
+                  <Link key={action.href} href={action.href} className="floating-glass rounded-[64px] p-16 shadow-premium group hover-lift overflow-hidden relative border-none">
+                     <div className="absolute top-0 right-0 p-12 text-primary/[0.04] scale-[3] group-hover:rotate-12 transition-transform duration-1000">
                         {action.icon}
                      </div>
                      <div className="relative z-10 h-full flex flex-col">
-                        <div className="w-16 h-16 rounded-[24px] bg-primary/[0.03] text-primary flex items-center justify-center mb-10 group-hover:scale-110 transition-transform duration-500 shadow-inner">
+                        <div className="w-24 h-24 rounded-[32px] bg-primary/[0.03] text-primary flex items-center justify-center mb-12 group-hover:scale-110 transition-transform duration-700 shadow-inner">
                            {action.icon}
                         </div>
                         <div className="flex-1">
-                           <h3 className="text-3xl font-bold text-foreground group-hover:text-primary transition-colors tracking-tighter mb-4 leading-none">
+                           <h3 className="text-4xl font-black text-foreground group-hover:text-primary transition-colors tracking-tightest mb-6 leading-none">
                               {action.label}
                            </h3>
-                           <p className="text-lg text-foreground/40 font-medium leading-relaxed italic mb-10">
+                           <p className="text-xl text-foreground/40 font-medium leading-relaxed italic mb-12 text-balance">
                               {action.desc}
                            </p>
                         </div>
-                        <div className="flex items-center gap-4 text-primary font-black text-[11px] uppercase tracking-[0.2em] opacity-40 group-hover:opacity-100 transition-all">
-                           Open Terminal <ArrowRight className="w-4 h-4 group-hover:translate-x-2 transition-transform" />
+                        <div className="flex items-center gap-6 text-primary font-black text-[11px] uppercase tracking-[0.3em] opacity-40 group-hover:opacity-100 transition-all">
+                           Synchronize Registry <ArrowRight className="w-5 h-5 group-hover:translate-x-4 transition-transform" />
                         </div>
                      </div>
                   </Link>
@@ -243,6 +247,7 @@ export default function DashboardPage() {
              )}
           </div>
        </div>
+      </div>
     </main>
   );
 }

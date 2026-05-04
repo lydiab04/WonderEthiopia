@@ -3,7 +3,7 @@ import { ArrowLeft, Globe } from "lucide-react";
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-6 font-sans">
+    <div className="min-h-screen bg-background flex items-center justify-center px-3 md:px-4 lg:px-5 font-sans">
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-primary/[0.03] rounded-full blur-[150px]" />
       </div>

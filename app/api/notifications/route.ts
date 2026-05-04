@@ -12,14 +12,19 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { role } = session.user;
-    if (role !== "tourism_admin" && role !== "super_admin") {
+    const { role, id: userId } = session.user;
+    if (role !== "tourism_admin" && role !== "super_admin" && role !== "business_owner") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     await dbConnect();
 
-    const notifications = await AppNotification.find({ recipientRole: role })
+    const query: any = { recipientRole: role };
+    if (role === "business_owner") {
+      query.recipientId = userId;
+    }
+
+    const notifications = await AppNotification.find(query)
       .sort({ createdAt: -1 })
       .limit(50);
 
@@ -44,10 +49,19 @@ export async function PATCH(request: Request) {
     await dbConnect();
 
     const body = await request.json();
-    const { id } = body;
+    const { id, relatedId } = body;
 
-    if (!id) {
-      return NextResponse.json({ error: "Missing notification ID" }, { status: 400 });
+    if (!id && !relatedId) {
+      return NextResponse.json({ error: "Missing notification reference" }, { status: 400 });
+    }
+
+    if (relatedId) {
+      // Mark all notifications for this business as read for the current user
+      await AppNotification.updateMany(
+        { relatedId: relatedId, recipientRole: session.user.role },
+        { isRead: true }
+      );
+      return NextResponse.json({ message: "Notifications updated" });
     }
 
     const notification = await AppNotification.findByIdAndUpdate(

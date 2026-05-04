@@ -6,7 +6,7 @@ export interface IBusiness extends Document {
   applicantEmail: string;
   name: string;
   description: string;
-  category: "hotel" | "tour_operator" | "car_rental" | "event_organizer" | "restaurant" | "other";
+  category: ("hotel" | "tour_operator" | "car_rental" | "event_organizer")[];
   location: {
     region: string;
     city: string;
@@ -24,6 +24,12 @@ export interface IBusiness extends Document {
   contactEmail: string;
   isActive: boolean;
   profilePicture: string;
+  historyLogs: {
+    action: string;
+    description: string;
+    date: Date;
+    documentUrl?: string;
+  }[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -56,9 +62,10 @@ const BusinessSchema = new Schema<IBusiness>(
       required: [true, "Business description is required"],
     },
     category: {
-      type: String,
-      enum: ["hotel", "tour_operator", "car_rental", "event_organizer", "restaurant", "other"],
+      type: [String],
+      enum: ["hotel", "tour_operator", "car_rental", "event_organizer"],
       required: true,
+      default: [],
     },
     location: {
       region: { type: String, required: true },
@@ -116,6 +123,12 @@ const BusinessSchema = new Schema<IBusiness>(
       type: String,
       default: "",
     },
+    historyLogs: [{
+      action: { type: String, required: true },
+      description: { type: String, required: true },
+      date: { type: Date, default: Date.now },
+      documentUrl: { type: String },
+    }],
   },
   {
     timestamps: true,

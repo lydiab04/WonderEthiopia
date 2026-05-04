@@ -9,7 +9,7 @@ export default function BusinessPortalPage() {
     applicantName: "",
     name: "",
     description: "",
-    category: "hotel",
+    category: [] as string[],
     region: "",
     city: "",
     address: "",
@@ -38,6 +38,17 @@ export default function BusinessPortalPage() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handleCategoryChange = (val: string) => {
+    setFormData((prev) => {
+      const current = prev.category;
+      if (current.includes(val)) {
+        return { ...prev, category: current.filter((c) => c !== val) };
+      } else {
+        return { ...prev, category: [...current, val] };
+      }
+    });
+  };
+
   const handleIndustryChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({
       ...formData,
@@ -56,7 +67,12 @@ export default function BusinessPortalPage() {
       formDataToSend.append("applicantName", formData.applicantName);
       formDataToSend.append("name", formData.name);
       formDataToSend.append("description", formData.description);
-      formDataToSend.append("category", formData.category);
+      
+      // Send multiple categories
+      formData.category.forEach(cat => {
+        formDataToSend.append("category", cat);
+      });
+
       formDataToSend.append("region", formData.region);
       formDataToSend.append("city", formData.city);
       formDataToSend.append("address", formData.address);
@@ -89,7 +105,7 @@ export default function BusinessPortalPage() {
           applicantName: "",
           name: "",
           description: "",
-          category: "hotel",
+          category: [],
           region: "",
           city: "",
           address: "",
@@ -116,7 +132,7 @@ export default function BusinessPortalPage() {
     <div className="min-h-screen bg-background text-foreground font-sans">
       {/* Navigation */}
       <nav className="fixed top-0 w-full z-50 glass border-b border-foreground/[0.03]">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-3 md:px-4 lg:px-5 h-16 flex items-center justify-between">
           <Link href="/" className="text-lg font-bold tracking-tighter text-primary flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white font-black">W</div>
             BUSINESS PORTAL
@@ -127,7 +143,7 @@ export default function BusinessPortalPage() {
         </div>
       </nav>
 
-      <main className="pt-32 pb-24 max-w-4xl mx-auto px-6">
+      <main className="pt-32 pb-24 max-w-4xl mx-auto px-3 md:px-4 lg:px-5">
         {/* Header Hero */}
         <div className="mb-16 animate-fade-in">
           <div className="inline-flex items-center gap-2 px-3 py-1 mb-6 text-[10px] font-bold tracking-[0.2em] text-primary uppercase bg-primary/5 rounded-full border border-primary/10">
@@ -180,16 +196,35 @@ export default function BusinessPortalPage() {
                       <label className="text-[11px] font-bold text-foreground/30 uppercase tracking-widest">Business Name</label>
                       <input name="name" type="text" value={formData.name} onChange={handleChange} required className={inputClass} placeholder="Legal business title" />
                     </div>
-                    <div className="space-y-2">
-                       <label className="text-[11px] font-bold text-foreground/30 uppercase tracking-widest">Business Category</label>
-                       <select name="category" value={formData.category} onChange={handleChange} className={inputClass}>
-                        <option value="hotel">Hotels & Lodging</option>
-                        <option value="tour_operator">Tour Operator</option>
-                        <option value="car_rental">Car Rental</option>
-                        <option value="event_organizer">Event Management</option>
-                        <option value="restaurant">Dining & Cuisine</option>
-                        <option value="other">Other Tourism Service</option>
-                      </select>
+                    <div className="md:col-span-2 space-y-4">
+                       <label className="text-[11px] font-bold text-foreground/30 uppercase tracking-widest block">Choose All Applicable Business Categories</label>
+                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                          {[
+                            { value: "hotel", label: "Hotels & Lodging" },
+                            { value: "tour_operator", label: "Tour Operator" },
+                            { value: "car_rental", label: "Car Rental" },
+                            { value: "event_organizer", label: "Event Management" }
+                          ].map((cat) => (
+                            <div 
+                              key={cat.value}
+                              onClick={() => handleCategoryChange(cat.value)}
+                              className={`flex items-center gap-3 p-4 rounded-2xl border cursor-pointer transition-all duration-300 ${
+                                formData.category.includes(cat.value) 
+                                  ? "bg-primary/5 border-primary shadow-sm" 
+                                  : "bg-foreground/[0.02] border-foreground/[0.05] hover:border-foreground/[0.1]"
+                              }`}
+                            >
+                              <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${
+                                formData.category.includes(cat.value) ? "bg-primary border-primary" : "border-foreground/10"
+                              }`}>
+                                {formData.category.includes(cat.value) && <CheckCircle2 className="w-3 h-3 text-white" />}
+                              </div>
+                              <span className={`text-[13px] font-bold ${formData.category.includes(cat.value) ? "text-primary" : "text-foreground/60"}`}>
+                                {cat.label}
+                              </span>
+                            </div>
+                          ))}
+                       </div>
                     </div>
                     <div className="space-y-2">
                       <label className="text-[11px] font-bold text-foreground/30 uppercase tracking-widest">License/Permit ID</label>
@@ -223,34 +258,68 @@ export default function BusinessPortalPage() {
                   
                   <div className="grid grid-cols-1 gap-8">
                     {/* Specific Industry Fields */}
-                    {formData.category === "hotel" && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <select name="stars" onChange={handleIndustryChange} className={inputClass}>
-                          <option value="">Hotel Star Rating</option>
-                          <option value="1">1 Star</option><option value="2">2 Stars</option><option value="3">3 Stars</option><option value="4">4 Stars</option><option value="5">5 Stars</option>
-                        </select>
-                        <input name="website" type="text" placeholder="Official Website" onChange={handleIndustryChange} className={inputClass} />
-                        <div className="md:col-span-2 space-y-2">
-                          <label className="text-[11px] font-bold tracking-widest uppercase text-foreground/30">Upload Hospitality License</label>
-                          <input name="hotelLicense" type="file" onChange={handleFileChange} className={inputClass} accept=".pdf,image/*" />
+                    {formData.category.length === 0 && (
+                      <p className="text-foreground/40 text-sm font-medium text-center py-4 italic">
+                        Select one or more categories above to provide industry-specific details.
+                      </p>
+                    )}
+
+                    {formData.category.includes("hotel") && (
+                      <div className="space-y-6 pt-4 border-t border-foreground/[0.03]">
+                        <h4 className="text-[12px] font-black text-primary uppercase tracking-widest">Hotel Details</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <select name="stars" onChange={handleIndustryChange} className={inputClass}>
+                            <option value="">Hotel Star Rating</option>
+                            <option value="1">1 Star</option><option value="2">2 Stars</option><option value="3">3 Stars</option><option value="4">4 Stars</option><option value="5">5 Stars</option>
+                          </select>
+                          <input name="website" type="text" placeholder="Official Website" onChange={handleIndustryChange} className={inputClass} />
+                          <div className="md:col-span-2 space-y-2">
+                            <label className="text-[11px] font-bold tracking-widest uppercase text-foreground/30">Upload Hospitality License</label>
+                            <input name="hotelLicense" type="file" onChange={handleFileChange} className={inputClass} accept=".pdf,image/*" />
+                          </div>
                         </div>
                       </div>
                     )}
-                    {formData.category === "tour_operator" && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <input name="languages" type="text" placeholder="Supported Languages" onChange={handleIndustryChange} className={inputClass} />
-                        <input name="specialization" type="text" placeholder="Expedition Focus" onChange={handleIndustryChange} className={inputClass} />
-                        <div className="md:col-span-2 space-y-2">
-                          <label className="text-[11px] font-bold tracking-widest uppercase text-foreground/30">Tour Certificate</label>
-                          <input name="tourCert" type="file" onChange={handleFileChange} className={inputClass} accept=".pdf,image/*" />
+                    
+                    {formData.category.includes("tour_operator") && (
+                      <div className="space-y-6 pt-6 border-t border-foreground/[0.03]">
+                        <h4 className="text-[12px] font-black text-primary uppercase tracking-widest">Tour Operator Details</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <input name="languages" type="text" placeholder="Supported Languages" onChange={handleIndustryChange} className={inputClass} />
+                          <input name="specialization" type="text" placeholder="Expedition Focus" onChange={handleIndustryChange} className={inputClass} />
+                          <div className="md:col-span-2 space-y-2">
+                            <label className="text-[11px] font-bold tracking-widest uppercase text-foreground/30">Tour Certificate</label>
+                            <input name="tourCert" type="file" onChange={handleFileChange} className={inputClass} accept=".pdf,image/*" />
+                          </div>
                         </div>
                       </div>
                     )}
-                    {/* Placeholder for other categories same as previous but styled */}
-                    {["car_rental", "restaurant", "event_organizer", "extra"].includes(formData.category) || (formData.category === "other") && (
-                       <div className="space-y-2">
-                        <label className="text-[11px] font-bold tracking-widest uppercase text-foreground/30">Verification Document</label>
-                        <input name="generalLicense" type="file" onChange={handleFileChange} className={inputClass} accept=".pdf,image/*" />
+
+                    {formData.category.includes("car_rental") && (
+                       <div className="space-y-6 pt-6 border-t border-foreground/[0.03]">
+                        <h4 className="text-[12px] font-black text-primary uppercase tracking-widest">Car Rental Details</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <input name="fleetSize" type="number" placeholder="Number of Vehicles" onChange={handleIndustryChange} className={inputClass} />
+                          <input name="vehicleTypes" type="text" placeholder="Vehicle Types (e.g. 4x4, Luxury)" onChange={handleIndustryChange} className={inputClass} />
+                          <div className="md:col-span-2 space-y-2">
+                            <label className="text-[11px] font-bold tracking-widest uppercase text-foreground/30">Transport License</label>
+                            <input name="carRentalLicense" type="file" onChange={handleFileChange} className={inputClass} accept=".pdf,image/*" />
+                          </div>
+                        </div>
+                       </div>
+                    )}
+
+                    {formData.category.includes("event_organizer") && (
+                       <div className="space-y-6 pt-6 border-t border-foreground/[0.03]">
+                        <h4 className="text-[12px] font-black text-primary uppercase tracking-widest">Event Management Details</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <input name="experienceYears" type="number" placeholder="Years of Experience" onChange={handleIndustryChange} className={inputClass} />
+                          <input name="eventType" type="text" placeholder="Main Event Focus" onChange={handleIndustryChange} className={inputClass} />
+                          <div className="md:col-span-2 space-y-2">
+                            <label className="text-[11px] font-bold tracking-widest uppercase text-foreground/30">Event Organizer Certificate</label>
+                            <input name="eventCert" type="file" onChange={handleFileChange} className={inputClass} accept=".pdf,image/*" />
+                          </div>
+                        </div>
                        </div>
                     )}
                   </div>

@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import dbConnect from "@/lib/mongodb";
 import Business from "@/models/Business";
+import Service from "@/models/Service";
+import Review from "@/models/Review";
 
 export async function GET() {
   try {
@@ -18,7 +20,14 @@ export async function GET() {
       return NextResponse.json({ error: "Business registry not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ business });
+    const services = await Service.find({ businessId: business._id }).select("_id");
+    const serviceIds = services.map(s => s._id);
+    const reviews = await Review.find({ targetId: { $in: serviceIds }, targetType: "service" });
+    const avgRating = reviews.length > 0
+      ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+      : null;
+
+    return NextResponse.json({ business: { ...business.toObject(), avgRating } });
   } catch (error) {
     return NextResponse.json({ error: "Sync failed" }, { status: 500 });
   }
@@ -46,6 +55,17 @@ export async function PATCH(request: Request) {
 
     const filter: any = { ownerId: session.user.id };
     if (json._id) filter._id = json._id;
+
+    // Security Check: Prevent making suspended business active
+    if (update.isActive === true) {
+      const existingBusiness = await Business.findOne(filter);
+      if (existingBusiness && existingBusiness.status === "suspended") {
+        return NextResponse.json(
+          { error: "Action strictly prohibited. Suspended businesses cannot be taken online. Please appeal at the Ministry of Tourism." },
+          { status: 403 }
+        );
+      }
+    }
 
     const business = await Business.findOneAndUpdate(
       filter,

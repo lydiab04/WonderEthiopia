@@ -1,11 +1,12 @@
-import dbConnect from "../lib/mongodb";
-import User from "../models/User";
-import bcrypt from "bcryptjs";
 import * as dotenv from "dotenv";
 import path from "path";
 
-// Load .env.local
+// Load .env.local FIRST before other imports
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
+
+import dbConnect from "../lib/mongodb";
+import User from "../models/User";
+import bcrypt from "bcryptjs";
 
 async function seed() {
   try {

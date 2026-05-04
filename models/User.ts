@@ -9,11 +9,21 @@ export interface IUser extends Document {
   bio?: string;
   profileImage?: string;
   preferences?: {
-    categories?: string[]; // e.g. ["adventure", "culture", "religious"]
-    regions?: string[]; // e.g. ["amhara", "tigray"]
+    travelStyle?: string; // cultural, adventure, relaxation, luxury, backpacking
+    preferredAccommodationType?: string; // hotel, hostel, resort, lodge
+    roomPreference?: string; // private, shared
+    preferredActivities?: string[]; // hiking, wildlife safari, city tours, nightlife, historical sites
+    transportPreference?: string; // private vehicle, group transport, public transport
+    comfortLevel?: string; // standard, luxury
+    onboardingComplete?: boolean;
+    
+    // existing support
+    categories?: string[]; 
+    regions?: string[];
     budget?: "low" | "mid" | "high";
     language?: string;
   };
+  needsPasswordChange?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -53,6 +63,10 @@ const UserSchema = new Schema<IUser>(
         budget: "mid",
         language: "english",
       },
+    },
+    needsPasswordChange: {
+      type: Boolean,
+      default: false,
     },
   },
   {

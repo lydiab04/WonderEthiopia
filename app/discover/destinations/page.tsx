@@ -30,8 +30,12 @@ export default function DiscoverDestinations() {
         if (region !== "all") url += `&region=${region}`;
 
         const res = await fetch(url);
-        const data = await res.json();
-        setDestinations(data || []);
+        if (res.ok) {
+          const data = await res.json();
+          setDestinations(Array.isArray(data) ? data : []);
+        } else {
+          setDestinations([]);
+        }
       } catch (error) {
         console.error("Failed to fetch destinations:", error);
       } finally {
@@ -65,7 +69,7 @@ export default function DiscoverDestinations() {
     <div className="min-h-screen bg-background text-foreground font-sans">
       {/* Search Header */}
       <section className="pt-32 pb-16 bg-surface-elevated/30">
-        <div className="max-w-7xl mx-auto px-6">
+        <div className="max-w-7xl mx-auto px-3 md:px-4 lg:px-5">
           <div className="text-center mb-12">
             <span className="text-[10px] font-bold tracking-[0.3em] uppercase text-primary mb-4 block">
               Discover Ethiopia
@@ -109,7 +113,7 @@ export default function DiscoverDestinations() {
       </section>
 
       {/* Grid */}
-      <section className="py-20 max-w-7xl mx-auto px-6">
+      <section className="py-20 max-w-7xl mx-auto px-3 md:px-4 lg:px-5">
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[1, 2, 3, 4, 5, 6].map((n) => (

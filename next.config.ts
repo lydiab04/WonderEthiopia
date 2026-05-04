@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["mongoose"],
   // @ts-ignore
   turbopack: {
-    root: ".",
+    root: "C:/Users/Amor/Desktop/WondarEthiopia/wonderethiopia",
   },
   async headers() {
     return [
@@ -20,6 +20,7 @@ const nextConfig: NextConfig = {
     ];
   },
   images: {
+    qualities: [100, 75],
     remotePatterns: [
       {
         protocol: "https",
