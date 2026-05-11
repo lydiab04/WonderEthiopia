@@ -128,12 +128,7 @@ export default function BusinessDetail() {
         // Note: we might need a dedicated public detail route if this one is protected
         const res = await fetch(`/api/businesses/${id}`);
         const json = await res.json();
-<<<<<<< HEAD
-
-=======
-        console.log(json);
         
->>>>>>> origin/salem-branch
         if (json.data) {
           setBusiness(json.data);
           if (json.services) setServices(json.services);
