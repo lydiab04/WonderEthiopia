@@ -245,3 +245,86 @@ export async function sendExpansionRejectionEmail(
   };
   return transporter.sendMail(mailOptions);
 }
+
+export async function sendWarningEmail(
+  to: string,
+  businessName: string,
+  reason: string
+) {
+  const mailOptions = {
+    from: `"Wondar Ethiopia Compliance" <${process.env.EMAIL_USER}>`,
+    to,
+    subject: `URGENT: Official Warning for ${businessName}`,
+    html: `
+      <div style="font-family: 'Inter', sans-serif; max-width: 600px; margin: auto; padding: 40px; border: 1px solid #f0f0f0; border-radius: 24px; color: #1a1a1a;">
+        <div style="text-align: center; margin-bottom: 30px;">
+          <div style="display: inline-block; padding: 12px 20px; background: #ef4444; border-radius: 12px; color: white; font-weight: 900; font-size: 18px;">Wondar Ethiopia</div>
+        </div>
+        <h2 style="text-align: center; font-size: 26px; font-weight: 900; letter-spacing: -0.02em; color: #1a1a1a; margin-bottom: 8px;">Official Compliance Warning ⚠️</h2>
+        <p style="text-align: center; color: #666; margin-bottom: 36px; font-size: 15px;">Your business has received a formal warning regarding a reported grievance.</p>
+
+        <div style="background: #fef2f2; padding: 24px; border-radius: 16px; border: 1px solid #fee2e2; margin-bottom: 28px;">
+          <p style="margin: 0 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.15em; color: #b91c1c; font-weight: 900;">Admin Determination</p>
+          <p style="margin: 0; font-size: 14px; font-style: italic; color: #7f1d1d;">"${reason}"</p>
+        </div>
+
+        <p style="font-size: 14px; color: #555; line-height: 1.7;">
+          <strong>${businessName}</strong> must adhere strictly to the Wondar Ethiopia platform service policies. This is a formal warning. <strong>Further violations or failure to address the stated concern will result in immediate suspension of your business account and removal from the platform registry.</strong>
+        </p>
+
+        <div style="text-align: center; margin-top: 36px;">
+          <a href="${process.env.NEXTAUTH_URL}/business/dashboard" style="background-color: #1a1a1a; color: #fff; padding: 14px 32px; text-decoration: none; font-weight: 900; border-radius: 12px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.1em;">Review in Dashboard</a>
+        </div>
+
+        <div style="margin-top: 50px; padding-top: 20px; border-top: 1px solid #f0f0f0; text-align: center; font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 0.1em;">
+          Wondar Ethiopia Compliance Authority
+        </div>
+      </div>
+    `,
+  };
+  return transporter.sendMail(mailOptions);
+}
+
+export async function sendSuspensionEmail(
+  to: string,
+  businessName: string,
+  reason: string
+) {
+  const mailOptions = {
+    from: `"Wondar Ethiopia Compliance" <${process.env.EMAIL_USER}>`,
+    to,
+    subject: `CRITICAL: Business Suspension Notice for ${businessName}`,
+    html: `
+      <div style="font-family: 'Inter', sans-serif; max-width: 600px; margin: auto; padding: 40px; border: 1px solid #f0f0f0; border-radius: 24px; color: #1a1a1a;">
+        <div style="text-align: center; margin-bottom: 30px;">
+          <div style="display: inline-block; padding: 12px 20px; background: #dc2626; border-radius: 12px; color: white; font-weight: 900; font-size: 18px;">Wondar Ethiopia</div>
+        </div>
+        <h2 style="text-align: center; font-size: 26px; font-weight: 900; letter-spacing: -0.02em; color: #1a1a1a; margin-bottom: 8px;">Business Suspension 🚫</h2>
+        <p style="text-align: center; color: #666; margin-bottom: 36px; font-size: 15px;">Your business operations have been officially suspended.</p>
+
+        <div style="background: #fef2f2; padding: 24px; border-radius: 16px; border: 1px solid #fee2e2; margin-bottom: 28px;">
+          <p style="margin: 0 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.15em; color: #b91c1c; font-weight: 900;">Admin Determination</p>
+          <p style="margin: 0; font-size: 14px; font-style: italic; color: #7f1d1d;">"${reason}"</p>
+        </div>
+
+        <p style="font-size: 14px; color: #555; line-height: 1.7;">
+          Due to severe or repeated violations of platform policies, <strong>${businessName}</strong> has been suspended. All active services are hidden from tourists, and your business is no longer in good standing.
+        </p>
+        
+        <div style="background: #fffbeb; padding: 20px; border-radius: 12px; margin: 24px 0; border: 1px solid #fde68a;">
+          <h3 style="margin-top: 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; color: #d97706;">Appeal Instructions (CRITICAL)</h3>
+          <p style="margin-bottom: 0; font-size: 13px; color: #92400e;">You must physically report to the Ministry of Tourism with your business credentials to file an appeal and restore your registry standing.</p>
+        </div>
+
+        <div style="text-align: center; margin-top: 36px;">
+          <a href="${process.env.NEXTAUTH_URL}/business/reports" style="background-color: #1a1a1a; color: #fff; padding: 14px 32px; text-decoration: none; font-weight: 900; border-radius: 12px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.1em;">View Grievance Record</a>
+        </div>
+
+        <div style="margin-top: 50px; padding-top: 20px; border-top: 1px solid #f0f0f0; text-align: center; font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 0.1em;">
+          Wondar Ethiopia Compliance Authority
+        </div>
+      </div>
+    `,
+  };
+  return transporter.sendMail(mailOptions);
+}

@@ -73,11 +73,14 @@ export async function POST(
       const hashedPassword = await bcrypt.hash(plainPassword, 12);
 
       // 3. Create 'business_owner' User account
+      const tempPasswordExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
       const newOwner = await User.create({
         name: business.applicantName,
         email: business.contactEmail.toLowerCase(),
         password: hashedPassword,
         role: "business_owner",
+        needsPasswordChange: true,
+        tempPasswordExpiresAt: tempPasswordExpiry,
       });
 
       // 4. Link business to new owner
@@ -85,7 +88,7 @@ export async function POST(
       await business.save();
 
       // 5. Send Email with Credentials safely with Rollback if it fails
-      const emailText = `Hello ${business.applicantName},\n\nYour business application for ${business.name} has been approved!\n\nYou can now log in to your dashboard to manage your business and post services.\n\nHere are your login credentials:\nEmail: ${business.contactEmail.toLowerCase()}\nPassword: ${plainPassword}\n\nPlease change your password as soon as you log in.\n\nWelcome to WondarEthiopia!`;
+      const emailText = `Hello ${business.applicantName},\n\nYour business application for ${business.name} has been approved!\n\nYou can now log in to your dashboard to manage your business and post services.\n\nHere are your login credentials:\nEmail: ${business.contactEmail.toLowerCase()}\nTemporary Password: ${plainPassword}\n\n⚠️ IMPORTANT: This temporary password will expire in 24 hours. You must log in and change your password before it expires.\n\nPlease change your password immediately after logging in.\n\nWelcome to WondarEthiopia!`;
 
       try {
         await sendEmail(business.contactEmail, "Business Application Approved - Your Credentials", emailText);

@@ -146,12 +146,28 @@ export async function GET(request: Request) {
       filter = { userId: session.user.id };
     } else if (role === "business_owner") {
       const Business = (await import("@/models/Business")).default;
-      const business = await Business.findOne({ ownerId: session.user.id });
-      if (business) {
-        filter = { businessId: business._id };
-      } else {
-        return NextResponse.json({ bookings: [] });
+      let business = await Business.findOne({ ownerId: session.user.id });
+      
+      if (!business) {
+        business = await Business.findOne({ 
+          contactEmail: session.user.email?.toLowerCase(),
+          ownerId: { $exists: false }
+        });
+        if (business) {
+          business.ownerId = session.user.id as any;
+          await business.save();
+        } else {
+          business = await Business.findOne({ contactEmail: session.user.email?.toLowerCase() });
+          if (business && !business.ownerId) {
+               business.ownerId = session.user.id as any;
+               await business.save();
+          } else if (!business) {
+              return NextResponse.json({ bookings: [] });
+          }
+        }
       }
+      
+      filter = { businessId: business._id };
     } else if (role === "tourism_admin" || role === "super_admin") {
       filter = {}; // Admins see all for reporting
     }

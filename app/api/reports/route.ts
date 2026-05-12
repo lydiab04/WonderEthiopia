@@ -86,11 +86,8 @@ export async function GET(request: Request) {
       query.businessId = { $in: businessIds };
       if (status && status !== "all") query.status = status;
     } else if (session.user.role === "super_admin") {
-      const superAdminViewable = ["recommended_action", "recommended_dismiss", "resolved", "dismissed"];
-      query.status = { $in: superAdminViewable };
-      
-      // Allow specific status filter within their jurisdiction
-      if (status && status !== "all" && superAdminViewable.includes(status)) {
+      // Super Admins have complete visibility over all grievance states
+      if (status && status !== "all") {
         query.status = status;
       }
     } else {

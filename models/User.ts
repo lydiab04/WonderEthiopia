@@ -24,6 +24,7 @@ export interface IUser extends Document {
     language?: string;
   };
   needsPasswordChange?: boolean;
+  tempPasswordExpiresAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -67,6 +68,10 @@ const UserSchema = new Schema<IUser>(
     needsPasswordChange: {
       type: Boolean,
       default: false,
+    },
+    tempPasswordExpiresAt: {
+      type: Date,
+      default: null,
     },
   },
   {

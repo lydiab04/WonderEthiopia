@@ -54,6 +54,11 @@ const landMarkSchema=new mongoose.Schema({
     
 },{timestamps:true});
 
-const Landmark=mongoose.model('landmark',landMarkSchema);
+// Delete cached model to force re-registration with updated schema (handles hot-reload in dev)
+if (mongoose.models.Landmark) {
+  delete (mongoose.models as any).Landmark;
+}
+
+const Landmark = mongoose.models.Landmark || mongoose.model("Landmark", landMarkSchema);
 
 export default Landmark;

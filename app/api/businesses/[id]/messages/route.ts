@@ -49,8 +49,13 @@ export async function POST(
 
     await dbConnect();
 
+    // Fetch business status to capture historical context
+    const Business = (await import("@/models/Business")).default;
+    const business = await Business.findById(id).select("status");
+
     const message = await BusinessMessage.create({
       businessId: id,
+      businessStatusAtTime: business?.status || "unknown",
       senderId: session.user.id,
       senderName: session.user.name,
       senderRole: session.user.role,

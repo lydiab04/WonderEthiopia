@@ -51,11 +51,19 @@ export async function POST(request: Request) {
       }
 
       console.log(`[AUTH] Verifying temporary credentials for: ${email}`);
-      user = await User.findOne({ email }).select("+password");
+      user = await User.findOne({ email }).select("+password tempPasswordExpiresAt needsPasswordChange");
       
       if (!user) {
         console.warn(`[AUTH] Identity verification failed: No user found with email ${email}.`);
         return NextResponse.json({ error: "Identity verification failed. No account found for this email." }, { status: 401 });
+      }
+
+      // Check for expiry if it's a temporary password (needsPasswordChange is true)
+      if (user.needsPasswordChange && user.tempPasswordExpiresAt && new Date() > user.tempPasswordExpiresAt) {
+        console.warn(`[SECURITY] Temporary password expired for: ${email}`);
+        return NextResponse.json({ 
+          error: "Identity verification failed. Your temporary password has expired (24-hour window closed). Please contact support to reset your account." 
+        }, { status: 403 });
       }
 
       // SECURITY CRITICAL: Unauthorized flow (email + password) only allowed for first-time set up
@@ -86,7 +94,8 @@ export async function POST(request: Request) {
 
     await User.findByIdAndUpdate(user._id, {
       password: hashedPassword,
-      needsPasswordChange: false
+      needsPasswordChange: false,
+      tempPasswordExpiresAt: null
     });
 
     console.log(`[SECURITY] Password updated successfully for user: ${user.email}`);

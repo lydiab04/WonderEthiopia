@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import BusinessChat from "@/components/admin/BusinessChat";
 import ChatDrawer from "@/components/admin/ChatDrawer";
+import ExpansionChatDrawer from "@/components/admin/ExpansionChatDrawer";
 import { pusherClient } from "@/lib/pusher-client";
 
 interface Business {
@@ -384,6 +385,22 @@ export default function AdminBusinessesPage() {
                     </div>
                   </div>
 
+                  {/* Institutional Discussion (Chat) Toggle */}
+                  <div className="mb-10">
+                    <button
+                      onClick={() => setShowChat(req._id)}
+                      className="flex items-center gap-4 px-6 py-4 bg-primary/5 text-primary rounded-xl border border-primary/10 hover:bg-primary hover:text-white transition-all group/chat relative w-fit"
+                    >
+                      <MessageSquare className="w-5 h-5 group-hover/chat:scale-110 transition-transform" />
+                      <span className="text-[11px] font-black uppercase tracking-[0.3em]">Deliberation</span>
+                      {unreadBizCounts[req._id] > 0 && (
+                        <div className="absolute -top-2 -right-2 w-6 h-6 bg-primary text-white text-[10px] font-black rounded-full flex items-center justify-center shadow-lg border-2 border-white animate-bounce">
+                          {unreadBizCounts[req._id]}
+                        </div>
+                      )}
+                    </button>
+                  </div>
+
                   {/* Final Decision Panel */}
                   <div className="border-t border-foreground/[0.03] pt-10 mt-4">
                     {expandActingOn === req._id ? (
@@ -419,15 +436,32 @@ export default function AdminBusinessesPage() {
                         </div>
                       </div>
                     ) : (
-                      <button
-                        onClick={() => setExpandActingOn(req._id)}
-                        className="px-12 py-5 bg-primary text-white text-[11px] font-black rounded-2xl hover:bg-primary-hover shadow-2xl shadow-primary/20 transition-all active:scale-95 uppercase tracking-[0.2em] flex items-center gap-4"
-                      >
-                        Execute Master Decision
-                        <ChevronRight className="w-5 h-5" />
-                      </button>
+                      <div className="flex items-center gap-4">
+                        {req.recipientRole === "tourism_admin" ? (
+                          <div className="px-10 py-5 bg-amber-50 text-amber-600 border border-amber-100 text-[11px] font-black rounded-2xl uppercase tracking-[0.2em] flex items-center gap-3 opacity-80 shadow-sm cursor-not-allowed">
+                            <Clock className="w-5 h-5" />
+                            Awaiting Tourism Admin Recommendation
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setExpandActingOn(req._id)}
+                            className="px-12 py-5 bg-primary text-white text-[11px] font-black rounded-2xl hover:bg-primary-hover shadow-2xl shadow-primary/20 transition-all active:scale-95 uppercase tracking-[0.2em] flex items-center gap-4"
+                          >
+                            Execute Master Decision
+                            <ChevronRight className="w-5 h-5" />
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
+                  <ExpansionChatDrawer
+                    isOpen={showChat === req._id}
+                    onClose={() => setShowChat(null)}
+                    notificationId={req._id}
+                    businessName={req.relatedId?.name || "Business"}
+                    currentRole="super_admin"
+                    initialDiscussion={req.discussion}
+                  />
                 </div>
               ))}
             </div>
@@ -526,19 +560,23 @@ export default function AdminBusinessesPage() {
                              <MessageSquare className="w-4 h-4" /> Discussion
                              {unreadBizCounts[biz._id] > 0 && <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center animate-bounce shadow-lg">{unreadBizCounts[biz._id]}</span>}
                            </button>
-                           <button 
-                               onClick={() => handleDelete(biz._id)}
-                               className="flex items-center gap-3 px-6 py-4 bg-rose-50 text-rose-600 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-rose-600 hover:text-white transition-all">
-                               <Trash2 className="w-4 h-4" /> Purge Record
-                           </button>
+                           {biz.status !== "pending" && (
+                             <button 
+                                 onClick={() => handleDelete(biz._id)}
+                                 className="flex items-center gap-3 px-6 py-4 bg-rose-50 text-rose-600 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-rose-600 hover:text-white transition-all">
+                                 <Trash2 className="w-4 h-4" /> Purge Record
+                             </button>
+                           )}
                         </div>
                         
-                        <button
-                          onClick={() => setActingOn(biz._id)}
-                          className="px-10 py-5 bg-foreground text-background rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] hover:bg-primary transition-all flex items-center gap-3 active:scale-95 shadow-2xl">
-                          Execute Master Decision
-                          <ChevronRight className="w-4 h-4" />
-                        </button>
+                        {biz.status !== "pending" && (
+                          <button
+                            onClick={() => setActingOn(biz._id)}
+                            className="px-10 py-5 bg-foreground text-background rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] hover:bg-primary transition-all flex items-center gap-3 active:scale-95 shadow-2xl">
+                            Execute Master Decision
+                            <ChevronRight className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
 
                       {actingOn === biz._id && (

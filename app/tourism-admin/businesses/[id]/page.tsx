@@ -290,36 +290,7 @@ export default function TourismAdminBusinessDetailPage() {
                 </div>
               )}
 
-              {/* Tourism Admin Recommendation Panel */}
-              <div className="bg-white rounded-[60px] p-10 md:p-16 shadow-2xl shadow-foreground/5 border border-foreground/[0.03]">
-                <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-primary mb-10">Tourism Office Controls</h2>
-                <div className="flex flex-wrap gap-4 mb-6">
-                  <button onClick={() => setActingOn(!actingOn)}
-                    className="flex items-center gap-3 px-8 py-4 bg-primary text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-primary-hover transition-all shadow-xl shadow-primary/20">
-                    Issue Recommendation
-                  </button>
-                </div>
-                {actingOn && (
-                  <div className="space-y-6 animate-fade-in">
-                    <textarea value={actionNote} onChange={e => setActionNote(e.target.value)}
-                      placeholder="Enter your recommendation note..."
-                      className="w-full px-8 py-6 bg-foreground/[0.02] border border-foreground/[0.05] rounded-[32px] text-sm font-bold placeholder-foreground/20 outline-none focus:ring-2 focus:ring-primary/20 resize-none"
-                      rows={3} />
-                    <div className="flex gap-4 flex-wrap">
-                      <button onClick={() => handleAction("recommended_approve")} disabled={isSubmitting}
-                        className="flex-1 px-10 py-5 bg-primary text-white text-[11px] font-black rounded-2xl hover:bg-primary-hover transition-all flex items-center justify-center gap-3 uppercase tracking-widest">
-                        <CheckCircle2 className="w-5 h-5" /> Recommend Approval
-                      </button>
-                      <button onClick={() => handleAction("recommended_reject")} disabled={isSubmitting}
-                        className="flex-1 px-10 py-5 bg-white border border-red-100 text-red-600 text-[11px] font-black rounded-2xl hover:bg-red-50 transition-all flex items-center justify-center gap-3 uppercase tracking-widest">
-                        <XCircle className="w-5 h-5" /> Recommend Rejection
-                      </button>
-                      <button onClick={() => { setActingOn(false); setActionNote(""); }}
-                        className="px-8 py-5 text-[11px] font-black text-foreground/30 hover:text-foreground uppercase tracking-widest">Cancel</button>
-                    </div>
-                  </div>
-                )}
-              </div>
+
             </div>{/* end left column */}
 
             {/* RIGHT: Discussion Panel (1fr) */}

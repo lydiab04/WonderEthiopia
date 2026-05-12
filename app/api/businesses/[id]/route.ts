@@ -92,6 +92,13 @@ export async function PATCH(
 
     // Super Admin can make final decisions
     if (role === "super_admin") {
+      if (business.status === "pending") {
+        return NextResponse.json(
+          { error: "Business must be reviewed by a Tourism Admin first." },
+          { status: 400 }
+        );
+      }
+      
       if (!["approved", "rejected", "suspended", "unsuspend"].includes(action)) {
         return NextResponse.json(
           { error: "Invalid action. Use: approved, rejected, suspended, or unsuspend" },
@@ -207,6 +214,15 @@ export async function DELETE(
 
     const { id } = await params;
     await dbConnect();
+
+    // Check if pending
+    const businessToDel = await Business.findById(id);
+    if (businessToDel?.status === "pending") {
+      return NextResponse.json(
+        { error: "Cannot purge records that are still in the Pending review state." },
+        { status: 400 }
+      );
+    }
 
     const business = await Business.findByIdAndDelete(id);
     if (!business) {

@@ -30,10 +30,12 @@ interface Report {
 
 const statusConfig: Record<string, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
   pending: { label: "Awaiting Triage", color: "text-amber-600", bg: "bg-amber-50 border-amber-100", icon: <Clock className="w-3.5 h-3.5" /> },
-  under_review: { label: "Under Review", color: "text-blue-600", bg: "bg-blue-50 border-blue-100", icon: <AlertTriangle className="w-3.5 h-3.5" /> },
-  recommended_action: { label: "Action Recommended", color: "text-amber-600", bg: "bg-amber-50 border-amber-100", icon: <AlertTriangle className="w-3.5 h-3.5" /> },
-  recommended_dismiss: { label: "Under Review", color: "text-blue-600", bg: "bg-blue-50 border-blue-100", icon: <AlertTriangle className="w-3.5 h-3.5" /> },
-  resolved: { label: "Resolved by Authority", color: "text-emerald-600", bg: "bg-emerald-50 border-emerald-100", icon: <ShieldCheck className="w-3.5 h-3.5" /> },
+  recommended_under_review: { label: "Under Review", color: "text-blue-600", bg: "bg-blue-50 border-blue-100", icon: <AlertTriangle className="w-3.5 h-3.5" /> },
+  recommended_warning: { label: "Warning Recommended", color: "text-amber-600", bg: "bg-amber-50 border-amber-100", icon: <AlertTriangle className="w-3.5 h-3.5" /> },
+  recommended_suspension: { label: "Suspension Recommended", color: "text-red-600", bg: "bg-red-50 border-red-100", icon: <AlertTriangle className="w-3.5 h-3.5" /> },
+  recommended_dismissal: { label: "Dismissal Recommended", color: "text-blue-600", bg: "bg-blue-50 border-blue-100", icon: <AlertTriangle className="w-3.5 h-3.5" /> },
+  warned: { label: "Official Warning", color: "text-amber-600", bg: "bg-amber-50 border-amber-100", icon: <AlertTriangle className="w-3.5 h-3.5" /> },
+  suspended: { label: "Business Suspended", color: "text-red-600", bg: "bg-red-50 border-red-100", icon: <XCircle className="w-3.5 h-3.5" /> },
   dismissed: { label: "Closed / Dismissed", color: "text-foreground/40", bg: "bg-foreground/[0.02] border-foreground/[0.05]", icon: <XCircle className="w-3.5 h-3.5" /> },
 };
 
@@ -176,55 +178,69 @@ export default function BusinessReportsPage() {
                       </div>
 
                       {/* Official Decision */}
-                      {(report.status === "resolved" || report.status === "dismissed") && (
-                        <div className={`p-10 rounded-[40px] border relative overflow-hidden ${
-                          report.businessId?.status === "suspended" ? "border-red-500/20 bg-red-50/50" : "border-emerald-500/20 bg-emerald-50/50"
-                        }`}>
-                          <div className={`absolute top-0 right-0 w-64 h-64 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none ${
-                            report.businessId?.status === "suspended" ? "bg-red-500/5" : "bg-emerald-500/5"
-                          }`} />
-                          <div className="flex items-center gap-4 mb-6 relative z-10">
-                            <Gavel className={`w-6 h-6 ${report.businessId?.status === "suspended" ? "text-red-600" : "text-emerald-600"}`} />
-                            <span className={`text-[12px] font-black uppercase tracking-[0.3em] bg-white px-4 py-1.5 rounded-full shadow-sm border ${
-                              report.businessId?.status === "suspended" ? "text-red-600 border-red-100" : "text-emerald-600 border-emerald-100"
-                            }`}>
-                              Official Institutional Resolution
-                            </span>
-                          </div>
-                          <p className={`text-lg font-medium leading-relaxed bg-white p-8 rounded-[28px] border mb-6 shadow-sm relative z-10 ${
-                            report.businessId?.status === "suspended" ? "text-foreground border-red-200/50" : "text-foreground border-emerald-200/50"
-                          }`}>
-                            {report.superAdminDecision || "The central authority has reviewed this grievance and closed the investigation without providing a specific administrative note."}
-                          </p>
+                      {["resolved", "dismissed", "suspended", "warned"].includes(report.status) && (() => {
+                        const isSuspended = report.businessId?.status === "suspended" || report.status === "suspended";
+                        const isWarned = report.status === "warned";
+                        
+                        let theme = "emerald";
+                        if (isSuspended) theme = "red";
+                        else if (isWarned) theme = "amber";
+                        
+                        return (
+                          <div className={`p-10 rounded-[40px] border relative overflow-hidden border-${theme}-500/20 bg-${theme}-50/50`}>
+                            <div className={`absolute top-0 right-0 w-64 h-64 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none bg-${theme}-500/5`} />
+                            <div className="flex items-center gap-4 mb-6 relative z-10">
+                              <Gavel className={`w-6 h-6 text-${theme}-600`} />
+                              <span className={`text-[12px] font-black uppercase tracking-[0.3em] bg-white px-4 py-1.5 rounded-full shadow-sm border text-${theme}-600 border-${theme}-100`}>
+                                Official Institutional Resolution
+                              </span>
+                            </div>
+                            <p className={`text-lg font-medium leading-relaxed bg-white p-8 rounded-[28px] border mb-6 shadow-sm relative z-10 text-foreground border-${theme}-200/50`}>
+                              {report.superAdminDecision || "The central authority has reviewed this grievance and closed the investigation without providing a specific administrative note."}
+                            </p>
 
-                          {report.businessId?.status === "suspended" && (
-                            <div className="bg-red-500/10 border border-red-500/20 p-6 rounded-3xl relative z-10 flex items-start gap-4">
-                              <AlertTriangle className="w-6 h-6 text-red-600 shrink-0 mt-1" />
-                              <div>
-                                <span className="block text-red-700 font-bold mb-1">Appeal Instructions (CRITICAL)</span>
-                                <span className="block text-sm text-red-600/80 font-medium leading-relaxed">
-                                  Your business operations have been <strong>SUSPENDED</strong> as part of this resolution. You must physically report to the Ministry of Tourism with your credentials to file an appeal.
-                                </span>
+                            {isSuspended && (
+                              <div className="bg-red-500/10 border border-red-500/20 p-6 rounded-3xl relative z-10 flex items-start gap-4">
+                                <AlertTriangle className="w-6 h-6 text-red-600 shrink-0 mt-1" />
+                                <div>
+                                  <span className="block text-red-700 font-bold mb-1">Appeal Instructions (CRITICAL)</span>
+                                  <span className="block text-sm text-red-600/80 font-medium leading-relaxed">
+                                    Your business operations have been <strong>SUSPENDED</strong> as part of this resolution. You must physically report to the Ministry of Tourism with your credentials to file an appeal.
+                                  </span>
+                                </div>
                               </div>
-                            </div>
-                          )}
-                          {report.businessId?.status !== "suspended" && (
-                             <div className="bg-emerald-500/10 border border-emerald-500/20 p-6 rounded-3xl relative z-10 flex items-start gap-4">
-                              <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0 mt-1" />
-                              <div>
-                                <span className="block text-emerald-700 font-bold mb-1">
-                                  {report.status === "dismissed" ? "Cleared of Fault" : "Compliance Restored"}
-                                </span>
-                                <span className="block text-sm text-emerald-600/80 font-medium leading-relaxed">
-                                  {report.status === "dismissed" 
-                                    ? "This grievance was officially dismissed. Your operations are currently in good standing."
-                                    : "The previously issued suspension has been lifted. Your business is now in good standing with the central registry."}
-                                </span>
+                            )}
+                            
+                            {isWarned && (
+                              <div className="bg-amber-500/10 border border-amber-500/20 p-6 rounded-3xl relative z-10 flex items-start gap-4">
+                                <AlertTriangle className="w-6 h-6 text-amber-600 shrink-0 mt-1" />
+                                <div>
+                                  <span className="block text-amber-700 font-bold mb-1">Official Compliance Warning</span>
+                                  <span className="block text-sm text-amber-600/80 font-medium leading-relaxed">
+                                    This is a formal institutional warning. Failure to address the stated violations will result in immediate suspension of your business account and removal from the platform registry.
+                                  </span>
+                                </div>
                               </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
+                            )}
+
+                            {!isSuspended && !isWarned && (
+                               <div className="bg-emerald-500/10 border border-emerald-500/20 p-6 rounded-3xl relative z-10 flex items-start gap-4">
+                                <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0 mt-1" />
+                                <div>
+                                  <span className="block text-emerald-700 font-bold mb-1">
+                                    {report.status === "dismissed" ? "Cleared of Fault" : "Compliance Restored"}
+                                  </span>
+                                  <span className="block text-sm text-emerald-600/80 font-medium leading-relaxed">
+                                    {report.status === "dismissed" 
+                                      ? "This grievance was officially dismissed. Your operations are currently in good standing."
+                                      : "The previously issued suspension has been lifted. Your business is now in good standing with the central registry."}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>

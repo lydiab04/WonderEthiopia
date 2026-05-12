@@ -1,5 +1,13 @@
 import mongoose, { Schema, Document, Model, Types } from "mongoose";
 
+export interface IDiscussionMessage {
+  senderId: Types.ObjectId;
+  senderName: string;
+  senderRole: string;
+  message: string;
+  timestamp: Date;
+}
+
 export interface IAppNotification extends Document {
   recipientRole: "tourism_admin" | "super_admin" | "business_owner";
   title: string;
@@ -10,6 +18,7 @@ export interface IAppNotification extends Document {
   sourceNotificationId?: Types.ObjectId;
   recommendationAction?: string; // 'recommend_approve' | 'recommend_reject' — set when tourism_admin acts
   recommendedAt?: Date;
+  discussion: IDiscussionMessage[];
   isRead: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -55,6 +64,15 @@ const NotificationSchema = new Schema<IAppNotification>(
       type: Date,
       default: null,
     },
+    discussion: [
+      {
+        senderId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+        senderName: { type: String, required: true },
+        senderRole: { type: String, required: true },
+        message: { type: String, required: true },
+        timestamp: { type: Date, default: Date.now },
+      },
+    ],
     isRead: {
       type: Boolean,
       default: false,

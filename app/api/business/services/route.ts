@@ -14,8 +14,28 @@ export async function GET() {
     }
 
     await dbConnect();
-    const business = await Business.findOne({ ownerId: session.user.id });
-    if (!business) return NextResponse.json({ services: [] });
+    let business = await Business.findOne({ ownerId: session.user.id });
+    
+    if (!business) {
+      // Fallback: Link by email
+      business = await Business.findOne({ 
+        contactEmail: session.user.email?.toLowerCase(),
+        ownerId: { $exists: false }
+      });
+      if (business) {
+        business.ownerId = session.user.id as any;
+        await business.save();
+      } else {
+        // Final check for already linked cases with mismatch or not found
+        business = await Business.findOne({ contactEmail: session.user.email?.toLowerCase() });
+        if (business && !business.ownerId) {
+             business.ownerId = session.user.id as any;
+             await business.save();
+        } else if (!business) {
+            return NextResponse.json({ services: [] });
+        }
+      }
+    }
 
     const services = await Service.find({ businessId: business._id }).lean();
     const serviceIds = services.map(s => s._id);
@@ -43,8 +63,26 @@ export async function POST(request: Request) {
     }
 
     await dbConnect();
-    const business = await Business.findOne({ ownerId: session.user.id });
-    if (!business) return NextResponse.json({ error: "Business not approved yet" }, { status: 403 });
+    let business = await Business.findOne({ ownerId: session.user.id });
+    
+    if (!business) {
+      business = await Business.findOne({ 
+        contactEmail: session.user.email?.toLowerCase(),
+        ownerId: { $exists: false }
+      });
+      if (business) {
+        business.ownerId = session.user.id as any;
+        await business.save();
+      } else {
+        business = await Business.findOne({ contactEmail: session.user.email?.toLowerCase() });
+        if (business && !business.ownerId) {
+             business.ownerId = session.user.id as any;
+             await business.save();
+        } else if (!business) {
+            return NextResponse.json({ error: "Business not approved yet or not found" }, { status: 403 });
+        }
+      }
+    }
 
     const body = await request.json();
     console.log("Registry Request Received:", {

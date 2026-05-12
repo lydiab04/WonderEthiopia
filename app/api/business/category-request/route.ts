@@ -96,7 +96,21 @@ export async function GET(req: Request) {
 
     await dbConnect();
 
-    const requests = await AppNotification.find({ type: "category_request", recipientRole: session.user.role, isRead: false })
+    let query: any;
+    if (session.user.role === "super_admin") {
+      query = {
+        type: "category_request",
+        isRead: false,
+        $or: [
+          { recipientRole: "super_admin" },
+          { recipientRole: "tourism_admin", recommendationAction: null }
+        ]
+      };
+    } else {
+      query = { type: "category_request", recipientRole: "tourism_admin", isRead: false };
+    }
+
+    const requests = await AppNotification.find(query)
       .sort({ createdAt: -1 })
       .populate("relatedId");
 
@@ -114,13 +128,48 @@ export async function PATCH(req: Request) {
     }
 
     await dbConnect();
-    const { notificationId, action, note } = await req.json();
+    const { notificationId, action, note, message } = await req.json();
 
     const notification = await AppNotification.findById(notificationId);
     if (!notification) return NextResponse.json({ error: "Request not found" }, { status: 404 });
 
     const business = await Business.findById(notification.relatedId);
     if (!business) return NextResponse.json({ error: "Associated business not found" }, { status: 404 });
+
+    // Handle chat messages
+    if (message && message.trim()) {
+      const newMessage = {
+        senderId: session.user.id,
+        senderName: session.user.name,
+        senderRole: session.user.role,
+        message: message.trim(),
+        timestamp: new Date(),
+      };
+
+      // Find all related notifications (the original and the forwarded one)
+      const allRelatedNotifs = await AppNotification.find({
+        $or: [
+          { _id: notification._id },
+          { sourceNotificationId: notification._id },
+          { _id: notification.sourceNotificationId || null }
+        ].filter(condition => condition._id !== null)
+      });
+
+      for (const n of allRelatedNotifs) {
+        if (!n.discussion) n.discussion = [];
+        n.discussion.push(newMessage as any);
+        await n.save();
+      }
+
+      if (!action) {
+         try {
+           const { pusherServer } = await import("@/lib/pusher");
+           await pusherServer.trigger(`admin-notifications-tourism_admin`, "new-internal-message", { senderName: session.user.name, message: "New message in Expansion Request" });
+           await pusherServer.trigger(`admin-notifications-super_admin`, "new-internal-message", { senderName: session.user.name, message: "New message in Expansion Request" });
+         } catch (e) {}
+         return NextResponse.json({ success: true });
+      }
+    }
 
     if (session.user.role === "tourism_admin") {
       if (action !== "recommend_approve" && action !== "recommend_reject") {

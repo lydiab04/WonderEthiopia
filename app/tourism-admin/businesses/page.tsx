@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import BusinessChat from "@/components/admin/BusinessChat";
 import ChatDrawer from "@/components/admin/ChatDrawer";
+import ExpansionChatDrawer from "@/components/admin/ExpansionChatDrawer";
 import { pusherClient } from "@/lib/pusher-client";
 
 interface Business {
@@ -340,7 +341,23 @@ export default function TourismAdminBusinessesPage() {
                       })()}
                     </div>
                   </div>
-                  <div className="border-t border-foreground/[0.03] pt-8 mt-8">
+                  {/* Institutional Discussion (Chat) Toggle */}
+                  <div className="mb-10">
+                    <button
+                      onClick={() => setShowChat(req._id)}
+                      className="flex items-center gap-4 px-6 py-4 bg-primary/5 text-primary rounded-xl border border-primary/10 hover:bg-primary hover:text-white transition-all group/chat relative w-fit"
+                    >
+                      <MessageSquare className="w-5 h-5 group-hover/chat:scale-110 transition-transform" />
+                      <span className="text-[11px] font-black uppercase tracking-[0.3em]">Deliberation</span>
+                      {unreadBizCounts[req._id] > 0 && (
+                        <div className="absolute -top-2 -right-2 w-6 h-6 bg-primary text-white text-[10px] font-black rounded-full flex items-center justify-center shadow-lg border-2 border-white animate-bounce">
+                          {unreadBizCounts[req._id]}
+                        </div>
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="border-t border-foreground/[0.03] pt-8 mt-4">
                     {req.recommendationAction ? (
                       /* Already forwarded — show status, await Super Admin */
                       <div className={`flex items-center gap-6 p-6 rounded-[28px] ${req.recommendationAction === "recommend_approve"
@@ -411,6 +428,14 @@ export default function TourismAdminBusinessesPage() {
                       </button>
                     )}
                   </div>
+                  <ExpansionChatDrawer
+                    isOpen={showChat === req._id}
+                    onClose={() => setShowChat(null)}
+                    notificationId={req._id}
+                    businessName={req.relatedId?.name || "Business"}
+                    currentRole="tourism_admin"
+                    initialDiscussion={req.discussion}
+                  />
                 </div>
               ))}
             </div>

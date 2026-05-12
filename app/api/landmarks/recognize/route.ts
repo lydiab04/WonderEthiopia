@@ -53,7 +53,7 @@ export async function GET(req: Request) {
   const results = { success: 0, failed: 0, skipped: 0 };
 
   for (const landmark of landmarks) {
-    const imageUrl = landmark.images?.[0];
+    const imageUrl = (landmark as any).gallery?.[0];
     if (!imageUrl) {
       results.skipped++;
       continue;

@@ -62,6 +62,12 @@ export default function BusinessPortalPage() {
     setSuccess("");
     setLoading(true);
 
+    if (formData.category.length === 0) {
+      setError("Please select at least one business category.");
+      setLoading(false);
+      return;
+    }
+
     try {
       const formDataToSend = new FormData();
       formDataToSend.append("applicantName", formData.applicantName);
@@ -268,14 +274,14 @@ export default function BusinessPortalPage() {
                       <div className="space-y-6 pt-4 border-t border-foreground/[0.03]">
                         <h4 className="text-[12px] font-black text-primary uppercase tracking-widest">Hotel Details</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <select name="stars" onChange={handleIndustryChange} className={inputClass}>
+                          <select name="stars" onChange={handleIndustryChange} required className={inputClass}>
                             <option value="">Hotel Star Rating</option>
                             <option value="1">1 Star</option><option value="2">2 Stars</option><option value="3">3 Stars</option><option value="4">4 Stars</option><option value="5">5 Stars</option>
                           </select>
-                          <input name="website" type="text" placeholder="Official Website" onChange={handleIndustryChange} className={inputClass} />
+                          <input name="website" type="text" placeholder="Official Website" onChange={handleIndustryChange} required className={inputClass} />
                           <div className="md:col-span-2 space-y-2">
                             <label className="text-[11px] font-bold tracking-widest uppercase text-foreground/30">Upload Hospitality License</label>
-                            <input name="hotelLicense" type="file" onChange={handleFileChange} className={inputClass} accept=".pdf,image/*" />
+                            <input name="hotelLicense" type="file" onChange={handleFileChange} required className={inputClass} accept=".pdf,image/*" />
                           </div>
                         </div>
                       </div>
@@ -285,11 +291,11 @@ export default function BusinessPortalPage() {
                       <div className="space-y-6 pt-6 border-t border-foreground/[0.03]">
                         <h4 className="text-[12px] font-black text-primary uppercase tracking-widest">Tour Operator Details</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <input name="languages" type="text" placeholder="Supported Languages" onChange={handleIndustryChange} className={inputClass} />
-                          <input name="specialization" type="text" placeholder="Expedition Focus" onChange={handleIndustryChange} className={inputClass} />
+                          <input name="languages" type="text" placeholder="Supported Languages" onChange={handleIndustryChange} required className={inputClass} />
+                          <input name="specialization" type="text" placeholder="Expedition Focus" onChange={handleIndustryChange} required className={inputClass} />
                           <div className="md:col-span-2 space-y-2">
                             <label className="text-[11px] font-bold tracking-widest uppercase text-foreground/30">Tour Certificate</label>
-                            <input name="tourCert" type="file" onChange={handleFileChange} className={inputClass} accept=".pdf,image/*" />
+                            <input name="tourCert" type="file" onChange={handleFileChange} required className={inputClass} accept=".pdf,image/*" />
                           </div>
                         </div>
                       </div>
@@ -299,11 +305,11 @@ export default function BusinessPortalPage() {
                        <div className="space-y-6 pt-6 border-t border-foreground/[0.03]">
                         <h4 className="text-[12px] font-black text-primary uppercase tracking-widest">Car Rental Details</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <input name="fleetSize" type="number" placeholder="Number of Vehicles" onChange={handleIndustryChange} className={inputClass} />
-                          <input name="vehicleTypes" type="text" placeholder="Vehicle Types (e.g. 4x4, Luxury)" onChange={handleIndustryChange} className={inputClass} />
+                          <input name="fleetSize" type="number" placeholder="Number of Vehicles" onChange={handleIndustryChange} required className={inputClass} />
+                          <input name="vehicleTypes" type="text" placeholder="Vehicle Types (e.g. 4x4, Luxury)" onChange={handleIndustryChange} required className={inputClass} />
                           <div className="md:col-span-2 space-y-2">
                             <label className="text-[11px] font-bold tracking-widest uppercase text-foreground/30">Transport License</label>
-                            <input name="carRentalLicense" type="file" onChange={handleFileChange} className={inputClass} accept=".pdf,image/*" />
+                            <input name="carRentalLicense" type="file" onChange={handleFileChange} required className={inputClass} accept=".pdf,image/*" />
                           </div>
                         </div>
                        </div>
@@ -313,11 +319,11 @@ export default function BusinessPortalPage() {
                        <div className="space-y-6 pt-6 border-t border-foreground/[0.03]">
                         <h4 className="text-[12px] font-black text-primary uppercase tracking-widest">Event Management Details</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <input name="experienceYears" type="number" placeholder="Years of Experience" onChange={handleIndustryChange} className={inputClass} />
-                          <input name="eventType" type="text" placeholder="Main Event Focus" onChange={handleIndustryChange} className={inputClass} />
+                          <input name="experienceYears" type="number" placeholder="Years of Experience" onChange={handleIndustryChange} required className={inputClass} />
+                          <input name="eventType" type="text" placeholder="Main Event Focus" onChange={handleIndustryChange} required className={inputClass} />
                           <div className="md:col-span-2 space-y-2">
                             <label className="text-[11px] font-bold tracking-widest uppercase text-foreground/30">Event Organizer Certificate</label>
-                            <input name="eventCert" type="file" onChange={handleFileChange} className={inputClass} accept=".pdf,image/*" />
+                            <input name="eventCert" type="file" onChange={handleFileChange} required className={inputClass} accept=".pdf,image/*" />
                           </div>
                         </div>
                        </div>

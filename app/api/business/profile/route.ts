@@ -14,11 +14,37 @@ export async function GET() {
     }
 
     await dbConnect();
-    const business = await Business.findOne({ ownerId: session.user.id });
+    console.log("FETCHING BUSINESS PROFILE FOR OWNER ID:", session.user.id);
+    let business = await Business.findOne({ ownerId: session.user.id });
     
     if (!business) {
-      return NextResponse.json({ error: "Business registry not found" }, { status: 404 });
+      console.warn("BUSINESS REGISTRY NOT FOUND BY ID. TRYING EMAIL FALLBACK:", session.user.email);
+      // Fallback: Try to find by contact email and link it (Repair logic)
+      business = await Business.findOne({ 
+        contactEmail: session.user.email?.toLowerCase(),
+        ownerId: { $exists: false } // Only link if not already linked to someone else
+      });
+
+      if (business) {
+        console.log("REPAIRING LINKAGE: Setting ownerId for business:", business.name);
+        business.ownerId = session.user.id as any;
+        await business.save();
+      } else {
+        // Final check: find by email regardless of current ownerId (Aggressive repair)
+        business = await Business.findOne({ contactEmail: session.user.email?.toLowerCase() });
+        if (business) {
+          if (String(business.ownerId) !== session.user.id) {
+             console.log("ID MISMATCH DETECTED. Re-linking business", business.name, "from", business.ownerId, "to", session.user.id);
+             business.ownerId = session.user.id as any;
+             await business.save();
+          }
+        } else {
+            return NextResponse.json({ error: "Business registry not found" }, { status: 404 });
+        }
+      }
     }
+
+    console.log("BUSINESS REGISTRY ACTIVE:", business._id, business.name);
 
     const services = await Service.find({ businessId: business._id }).select("_id");
     const serviceIds = services.map(s => s._id);
@@ -53,13 +79,13 @@ export async function PATCH(request: Request) {
     console.log("UPDATING BUSINESS PROFILE:", { id: session.user.id, businessId: json._id, update });
     console.log("PROFILE PICTURE IN UPDATE:", update.profilePicture);
 
-    const filter: any = { ownerId: session.user.id };
+    let filter: any = { ownerId: session.user.id };
     if (json._id) filter._id = json._id;
 
     // Security Check: Prevent making suspended business active
     if (update.isActive === true) {
-      const existingBusiness = await Business.findOne(filter);
-      if (existingBusiness && existingBusiness.status === "suspended") {
+      const checkBusiness = await Business.findOne(filter);
+      if (checkBusiness && checkBusiness.status === "suspended") {
         return NextResponse.json(
           { error: "Action strictly prohibited. Suspended businesses cannot be taken online. Please appeal at the Ministry of Tourism." },
           { status: 403 }
@@ -67,15 +93,27 @@ export async function PATCH(request: Request) {
       }
     }
 
-    const business = await Business.findOneAndUpdate(
+    let business = await Business.findOneAndUpdate(
       filter,
       { $set: update },
       { new: true }
     );
 
     if (!business) {
-      console.error("BUSINESS NOT FOUND FOR OWNER ID:", session.user.id);
-      return NextResponse.json({ error: "Business not found" }, { status: 404 });
+      console.warn("PATCH: BUSINESS NOT FOUND BY ID. TRYING EMAIL FALLBACK:", session.user.email);
+      // Fallback: Find by email and re-link/update
+      business = await Business.findOne({ contactEmail: session.user.email?.toLowerCase() });
+
+      if (business) {
+        console.log("PATCH: REPAIRING LINKAGE FOR:", business.name);
+        business.ownerId = session.user.id as any;
+        // Apply updates to the found record
+        Object.assign(business, update);
+        await business.save();
+      } else {
+        console.error("BUSINESS NOT FOUND FOR EMAIL:", session.user.email);
+        return NextResponse.json({ error: "Business not found" }, { status: 404 });
+      }
     }
 
     console.log("BUSINESS PROFILE UPDATED SUCCESSFULLY:", business._id, "Profile Picture:", business.profilePicture);

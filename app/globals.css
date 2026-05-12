@@ -1,12 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --background: #F8F9FA; /* Cloud White */
-  --foreground: #1B263B; /* Navy Night */
-  --primary: #FFAA33;    /* Amber */
+  --background: #F8F9FA;
+  /* Cloud White */
+  --foreground: #1B263B;
+  /* Navy Night */
+  --primary: #FFAA33;
+  /* Amber */
   --primary-hover: #E6992E;
   --accent: #FFAA33;
-  --secondary: #415A77; /* Steel Blue */
+  --secondary: #415A77;
+  /* Steel Blue */
   --surface: #ffffff;
   --surface-elevated: #F8F9FA;
   --border: rgba(27, 38, 59, 0.12);
@@ -76,28 +80,59 @@ body {
 
 /* Animations */
 @keyframes fade-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes slide-up {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 170, 51, 0.2); }
-  50% { box-shadow: 0 0 20px 4px rgba(255, 170, 51, 0.1); }
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 170, 51, 0.2);
+  }
+
+  50% {
+    box-shadow: 0 0 20px 4px rgba(255, 170, 51, 0.1);
+  }
 }
 
 @keyframes subtle-zoom {
-  from { transform: scale(1); }
-  to { transform: scale(1.05); }
+  from {
+    transform: scale(1);
+  }
+
+  to {
+    transform: scale(1.05);
+  }
 }
 
 .animate-fade-in {
@@ -113,13 +148,27 @@ body {
 }
 
 @keyframes slide-in-right {
-  from { transform: translateX(40px); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
+  from {
+    transform: translateX(40px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 @keyframes slide-in-left {
-  from { transform: translateX(-40px); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
+  from {
+    transform: translateX(-40px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 .animate-slide-in-right {
@@ -141,14 +190,25 @@ body {
 }
 
 /* Staggered animation delays */
-.delay-1 { animation-delay: 0.1s; }
-.delay-2 { animation-delay: 0.2s; }
-.delay-3 { animation-delay: 0.3s; }
-.delay-4 { animation-delay: 0.4s; }
+.delay-1 {
+  animation-delay: 0.1s;
+}
+
+.delay-2 {
+  animation-delay: 0.2s;
+}
+
+.delay-3 {
+  animation-delay: 0.3s;
+}
+
+.delay-4 {
+  animation-delay: 0.4s;
+}
 
 /* Advanced Design Utilities */
 .mesh-gradient {
-  background: 
+  background:
     radial-gradient(at 0% 0%, rgba(255, 170, 51, 0.05) 0px, transparent 50%),
     radial-gradient(at 100% 0%, rgba(65, 90, 119, 0.03) 0px, transparent 50%),
     radial-gradient(at 100% 100%, rgba(255, 170, 51, 0.05) 0px, transparent 50%),
@@ -156,7 +216,7 @@ body {
 }
 
 .mesh-gradient-rich {
-  background: 
+  background:
     radial-gradient(at 20% 20%, rgba(255, 170, 51, 0.08) 0px, transparent 40%),
     radial-gradient(at 80% 10%, rgba(65, 90, 119, 0.05) 0px, transparent 40%),
     radial-gradient(at 40% 80%, rgba(255, 170, 51, 0.06) 0px, transparent 40%),
@@ -168,13 +228,13 @@ body {
   backdrop-filter: blur(16px) saturate(180%);
   -webkit-backdrop-filter: blur(16px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.4);
-  box-shadow: 
+  box-shadow:
     0 4px 24px -1px rgba(0, 0, 0, 0.03),
     0 1px 1px 0 rgba(0, 0, 0, 0.02);
 }
 
 .shadow-premium {
-  box-shadow: 
+  box-shadow:
     0 20px 40px -12px rgba(27, 38, 59, 0.08),
     0 0 1px 0 rgba(27, 38, 59, 0.05);
 }
@@ -217,12 +277,6 @@ body {
   grid-template-areas: "stack";
 }
 
-.grid-stack > * {
+.grid-stack>* {
   grid-area: stack;
 }
-
-
-
-
-
-
