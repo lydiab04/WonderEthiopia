@@ -15,30 +15,36 @@ export default function TourBookingPage() {
   const [info, setInfo] = useState({
     number_of_guests: 1,
   });
+   const [existingBookings, setExistingBookings] = useState<Object>();
 
   const [tourData, setTourData] = useState<{ 
     id: string, 
     price: string, 
     name: string,
-    nights: number,
     slots: number,
-    location?: string,
-    difficulty?: string,
-    rating?: number
+    
   } | null>(null)
 
   useEffect(() => {
     const id = searchParams.get("id")
     const price = searchParams.get("price")
     const name = searchParams.get("name") || "Selected Tour"
-    const nights = parseInt(searchParams.get("nights") || "1")
-    const slots = parseInt(searchParams.get("slots") || "10")
-    const location = searchParams.get("location") || "Ethiopia"
-    const difficulty = searchParams.get("difficulty") || "Moderate"
-    const rating = parseFloat(searchParams.get("rating") || "4.5")
+   
+    const slots = parseInt(searchParams.get("quantity") || "10")
+    
 
     if (id && price) {
-      setTourData({ id, price, name, nights, slots, location, difficulty, rating })
+      setTourData({ id, price, name, slots })
+      const getExistingBookings = async () => {
+        try {
+          const bookings = await fetch(`/api/bookings/tours/${id}`, { method: 'GET' })
+          const data = await bookings.json()
+          setExistingBookings(data.data)
+        } catch (err) {
+          console.error("Failed to fetch existing bookings:", err)
+        }
+      }
+      getExistingBookings();
     } else {
       setError("Missing tour information. Please go back and try again.")
     }
@@ -50,13 +56,14 @@ export default function TourBookingPage() {
     setError(null);
   }
 
-  // Calculation: (Price per Night * Number of Nights) * Number of Guests
+ 
   const pricePerNight = tourData ? parseFloat(tourData.price.replace(/[^0-9.]/g, '')) : 0;
-  const subtotal = tourData ? (pricePerNight * tourData.nights * info.number_of_guests) : 0;
-  const serviceFee = subtotal * 0.05; // 5% service fee
-  const totalPrice = subtotal + serviceFee;
+  const subtotal = tourData ? (pricePerNight * info.number_of_guests) : 0;
+  const totalPrice = subtotal ;
 
   const isFormValid = tourData && info.number_of_guests >= 1 && info.number_of_guests <= tourData.slots;
+
+ 
 
   useEffect(()=>{
     const getCurrentUser=async()=>{
@@ -237,26 +244,6 @@ export default function TourBookingPage() {
                       {tourData.slots} spots available for departure
                     </p>
                   </div>
-
-                  
-
-                  {/* Highlights with Brand Accents */}
-                  <div className="bg-[#F8F9FA] rounded-xl p-4 border border-[var(--border)]">
-                    <h3 className="font-semibold text-[#1B263B] text-sm mb-3 flex items-center gap-2">
-                      <Mountain className="w-4 h-4 text-primary" />
-                      Tour Highlights
-                    </h3>
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2 text-xs text-[#415A77]">
-                        <CalendarDays className="w-4 h-4 text-primary" />
-                        <span>{tourData.nights} Nights Adventure</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-[#415A77]">
-                        <Compass className="w-4 h-4 text-primary" />
-                        <span>Difficulty: {tourData.difficulty}</span>
-                      </div>
-                    </div>
-                  </div>
                 </div>
 
                 {/* Right Column - Price Summary */}
@@ -282,23 +269,14 @@ export default function TourBookingPage() {
                           <span className="font-bold text-[#1B263B]">Total Price</span>
                           <div className="text-right">
                             <span className="text-2xl font-bold text-primary">${totalPrice.toLocaleString()}</span>
-                            <p className="text-[10px] text-gray-400 uppercase tracking-tighter">incl. 5% service fee</p>
+                           
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Benefit Section */}
-                  <div className="bg-[#415A77]/5 rounded-xl p-4 border border-[#415A77]/10">
-                    <div className="flex gap-3">
-                      <ShieldCheck className="w-5 h-5 text-primary flex-shrink-0" />
-                      <div className="text-sm">
-                        <p className="font-semibold text-[#1B263B] mb-1">What's Included</p>
-                        <p className="text-[#415A77] text-xs">✓ Pro Guide • ✓ Accommodation • ✓ Entry Fees • ✓ All Meals</p>
-                      </div>
-                    </div>
-                  </div>
+                  
 
                   {/* Reserve Button: Primary Amber */}
                   <button 
@@ -317,10 +295,7 @@ export default function TourBookingPage() {
                     )}
                   </button>
 
-                  <div className="flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest text-gray-400">
-                    <Calendar className="w-3 h-3" />
-                    <span>Free cancellation up to 14 days before</span>
-                  </div>
+                  
                 </div>
               </div>
             </form>

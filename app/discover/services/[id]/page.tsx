@@ -5,11 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import {
-  Star, MapPin, ChevronLeft, Send, User, Calendar,
-  MessageSquare, Phone, Mail, ShieldCheck, Clock,
-  AlertTriangle, Loader2, Bed, Car, Compass, Building2, X, Globe
+  Star, MapPin, ChevronLeft, CalendarDays, User, Calendar,
+  Building2, Globe, Loader2, ArrowRight
 } from "lucide-react";
-import { useSession } from "next-auth/react";
 
 interface Service {
   _id: string;
@@ -17,6 +15,7 @@ interface Service {
   description: string;
   category: string[];
   price: number;
+  quantity:number;
   currency: string;
   images: string[];
   metadata: Record<string, any>;
@@ -45,21 +44,12 @@ interface Review {
 export default function ServiceDetailPage() {
   const { id } = useParams();
   const router = useRouter();
-  const { data: session } = useSession();
 
   const [service, setService] = useState<Service | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [avgRating, setAvgRating] = useState(0);
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(0);
-
-  // Booking State
-  const [bookingGuests, setBookingGuests] = useState(1);
-  const [bookingDate, setBookingDate] = useState("");
-  const [bookingEndDate, setBookingEndDate] = useState("");
-  const [bookingNote, setBookingNote] = useState("");
-  const [bookingStatus, setBookingStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
-  const [errorMessage, setErrorMessage] = useState("");
   const [fullSvcGallery, setFullSvcGallery] = useState<{ index: number } | null>(null);
 
   useEffect(() => {
@@ -103,71 +93,30 @@ export default function ServiceDetailPage() {
     fetchDetails();
   }, [id]);
 
-  const handleSubmitBooking = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!session) {
-      router.push("/login");
-      return;
-    }
+  const handleRedirectToBooking = () => {
+  console.log(service);
+  
+  // Ensure we capture variables securely
+  const serviceId = id || service?.id || service?._id;
+  const servicePrice = service?.price || "";
+  const serviceName = service?.name || "";
+  const slots=service?.availability?.quantity || "";
 
-    if (!bookingDate) {
-      setErrorMessage("Please select a date.");
-      return;
-    }
-
-    // Validation: Arrival Date must be before Departure Dates (for tours)
-    if (service?.metadata?.departureDates) {
-      const depDateStr = String(service.metadata.departureDates);
-      // Support YYYY-MM-DD and MM/DD/YYYY
-      const dateMatches = depDateStr.match(/(\d{4}-\d{2}-\d{2})|(\d{2}\/\d{2}\/\d{4})/g);
-      
-      if (dateMatches && dateMatches.length > 0) {
-        // Parse matches into timestamps for comparison
-        const depTimestamps = dateMatches.map(d => new Date(d).getTime());
-        const earliestDepTs = Math.min(...depTimestamps);
-        
-        // Normalize selected arrival date to midnight for accurate comparison
-        const arrivalDate = new Date(bookingDate);
-        arrivalDate.setHours(0, 0, 0, 0);
-        const arrivalTs = arrivalDate.getTime();
-
-        if (arrivalTs >= earliestDepTs) {
-          const earliestDateObj = new Date(earliestDepTs);
-          setErrorMessage(`Protocol Violation: Your arrival (${arrivalDate.toLocaleDateString()}) is after the scheduled departure (${earliestDateObj.toLocaleDateString()}). Please select an earlier arrival.`);
-          return;
-        }
-      }
-    }
-
-    try {
-      setBookingStatus("submitting");
-      const res = await fetch("/api/bookings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          serviceId: service?._id,
-          startDate: bookingDate,
-          endDate: bookingEndDate || undefined,
-          guests: bookingGuests,
-          specialRequests: bookingNote,
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok && data.checkoutUrl) {
-        setBookingStatus("success");
-        setTimeout(() => {
-          window.location.href = data.checkoutUrl;
-        }, 1500);
-      } else {
-        setErrorMessage(data.error || "Booking failed.");
-        setBookingStatus("error");
-      }
-    } catch (error) {
-      setErrorMessage("An error occurred.");
-      setBookingStatus("error");
-    }
-  };
+  if (service?.category?.includes('room')) {
+    router.push(
+      `/booking/room_booking?id=${serviceId}&price=${encodeURIComponent(servicePrice)}&name=${encodeURIComponent(serviceName)}`
+    );
+  }
+  else if (service?.category?.includes('car')) {
+    router.push(`/booking/car_booking?id=${serviceId}&price=${encodeURIComponent(servicePrice)}&name=${encodeURIComponent(serviceName)}`);
+  }
+  else if (service?.category?.includes('event')) {
+    router.push(`/booking/event_booking?id=${serviceId}&price=${encodeURIComponent(servicePrice)}&name=${encodeURIComponent(serviceName)}&quantity=${encodeURIComponent(slots)}`);
+  }
+  else if (service?.category?.includes('tour')) {
+    router.push(`/booking/tour_booking?id=${serviceId}&price=${encodeURIComponent(servicePrice)}&name=${encodeURIComponent(serviceName)}&quantity=${encodeURIComponent(slots)}`);
+  }
+};
 
   if (loading) {
     return (
@@ -188,8 +137,6 @@ export default function ServiceDetailPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-20">
-
-
       <div className="max-w-7xl mx-auto px-3 md:px-4 lg:px-5 pt-32">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
 
@@ -197,7 +144,10 @@ export default function ServiceDetailPage() {
           <div className="lg:col-span-7 space-y-12">
             {/* Gallery */}
             <div className="space-y-6">
-              <div className="relative aspect-[16/10] rounded-[60px] overflow-hidden shadow-3xl shadow-primary/5 border border-foreground/5 cursor-pointer group" onClick={() => setFullSvcGallery({ index: activeImage })}>
+              <div 
+                className="relative aspect-[16/10] rounded-[60px] overflow-hidden shadow-3xl shadow-primary/5 border border-foreground/5 cursor-pointer group" 
+                onClick={() => setFullSvcGallery({ index: activeImage })}
+              >
                 <Image
                   src={service.images[activeImage] || "/lalibela.png"}
                   alt={service.name}
@@ -252,76 +202,31 @@ export default function ServiceDetailPage() {
                 </p>
               </div>
 
-              {/* Structured Professional Specifications */}
+              {/* Structured Specifications */}
               <div className="pt-8 space-y-16">
                 {(() => {
                   const categories = service.category.map(c => c.toLowerCase());
                   const isStay = categories.some(c => ["hotel", "room", "suite", "stay", "accommodation", "resort"].includes(c));
                   const isCar = categories.some(c => ["car", "rental", "vehicle", "fleet", "transport"].includes(c));
-                  const isEvent = categories.some(c => ["event", "organizer", "event_organizer"].includes(c));
                   const isTour = categories.some(c => ["tour", "expedition", "culture", "wildlife", "hiking", "trek", "trip"].includes(c));
 
                   const protocolGroups = [
-                    // ACCOMMODATION GROUPS
-                    {
-                      id: "stay_core", label: "Accommodation Artifacts",
-                      keys: ["accommodationType", "bedType", "maxOccupancy", "roomSize", "bathroomType", "viewType", "roomServiceAvailable", "accommodationPrice"],
-                      active: isStay
-                    },
-                    {
-                      id: "stay_culinary", label: "Culinary Portfolio",
-                      keys: ["diningType", "cuisine", "priceRange", "reservationRequired"],
-                      active: isStay
-                    },
-                    {
-                      id: "stay_leisure", label: "Leisure & Recreation",
-                      keys: ["facilityType", "accessType", "leisureHours", "equipmentAvailable"],
-                      active: isStay
-                    },
-                    // FLEET GROUPS
-                    {
-                      id: "car_core", label: "Fleet Core Identity",
-                      keys: ["vehicleName", "location", "features"],
-                      active: isCar
-                    },
-                    {
-                      id: "car_pricing", label: "Pricing & Deposit Protocol",
-                      keys: ["pricingType", "depositAmount", "depositRequired"],
-                      active: isCar
-                    },
-                    {
-                      id: "car_specs", label: "Vehicle Specifications",
-                      keys: ["brand", "model", "year", "luggageCapacity", "color"],
-                      active: isCar
-                    },
-                    {
-                      id: "car_personnel", label: "Driver & Personnel Options",
-                      keys: ["withDriver", "driverIncludedPrice", "driverLanguages", "selfDriveAvailable"],
-                      active: isCar
-                    },
-                    {
-                      id: "car_logistics", label: "Fleet Logistics & Terms",
-                      keys: ["fuelPolicy", "mileageLimit", "notAllowedUses"],
-                      active: isCar
-                    },
-                    {
-                      id: "car_safety", label: "Insurance & Safety Framework",
-                      keys: ["insuranceType", "extraKmCharge", "safetyFeatures"],
-                      active: isCar
-                    },
-                    // TOUR GROUPS
-                    {
-                      id: "tour_params", label: "Expedition Parameters",
-                      keys: ["duration", "difficulty", "destinations", "tourType", "pricingType", "startLocation", "departureDates", "minGroupSize", "maxGroupSize", "requiredDocuments", "emergencyContact", "cancellationDeadline", "uniqueExperiences"],
-                      active: isTour
-                    }
+                    { id: "stay_core", label: "Accommodation Artifacts", keys: ["accommodationType", "bedType", "maxOccupancy", "roomSize", "bathroomType", "viewType", "roomServiceAvailable", "accommodationPrice"], active: isStay },
+                    { id: "stay_culinary", label: "Culinary Portfolio", keys: ["diningType", "cuisine", "priceRange", "reservationRequired"], active: isStay },
+                    { id: "stay_leisure", label: "Leisure & Recreation", keys: ["facilityType", "accessType", "leisureHours", "equipmentAvailable"], active: isStay },
+                    { id: "car_core", label: "Fleet Core Identity", keys: ["vehicleName", "location", "features"], active: isCar },
+                    { id: "car_pricing", label: "Pricing & Deposit Protocol", keys: ["pricingType", "depositAmount", "depositRequired"], active: isCar },
+                    { id: "car_specs", label: "Vehicle Specifications", keys: ["brand", "model", "year", "luggageCapacity", "color"], active: isCar },
+                    { id: "car_personnel", label: "Driver & Personnel Options", keys: ["withDriver", "driverIncludedPrice", "driverLanguages", "selfDriveAvailable"], active: isCar },
+                    { id: "car_logistics", label: "Fleet Logistics & Terms", keys: ["fuelPolicy", "mileageLimit", "notAllowedUses"], active: isCar },
+                    { id: "car_safety", label: "Insurance & Safety Framework", keys: ["insuranceType", "extraKmCharge", "safetyFeatures"], active: isCar },
+                    { id: "tour_params", label: "Expedition Parameters", keys: ["duration", "difficulty", "destinations", "tourType", "pricingType", "startLocation", "departureDates", "minGroupSize", "maxGroupSize", "requiredDocuments", "emergencyContact", "cancellationDeadline", "uniqueExperiences"], active: isTour }
                   ];
 
                   return (
                     <div className="space-y-16">
                       {protocolGroups.map(group => {
                         if (!group.active) return null;
-
                         const activeMeta = Object.entries(service.metadata || {})
                           .filter(([key]) => group.keys.includes(key) && service.metadata[key] !== "" && service.metadata[key] !== null);
 
@@ -353,7 +258,7 @@ export default function ServiceDetailPage() {
                         );
                       })}
 
-                      {/* Special Handling for Itinerary */}
+                      {/* Itinerary handling */}
                       {isTour && service.metadata.itinerary && service.metadata.itinerary.length > 0 && (
                         <div className="animate-fade-in pt-8">
                           <h4 className="text-[12px] font-black uppercase tracking-[0.4em] text-primary mb-10">Expedition Itinerary</h4>
@@ -387,11 +292,11 @@ export default function ServiceDetailPage() {
             </div>
           </div>
 
-          {/* Right Column: Booking & Partner Info */}
+          {/* Right Column: Pricing Overview & Redirection Button */}
           <div className="lg:col-span-5">
             <div className="sticky top-32 space-y-8">
 
-              {/* Booking Card */}
+              {/* Booking Summary Card */}
               <div className="glass shadow-3xl shadow-primary/10 p-10 rounded-[60px] border border-primary/10 animate-slide-up">
                 <div className="flex items-center justify-between mb-10">
                   <div>
@@ -399,81 +304,22 @@ export default function ServiceDetailPage() {
                     <div className="text-3xl font-black text-primary">{service.currency} {service.price.toLocaleString()}</div>
                   </div>
                   <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center text-primary border border-primary/10">
-                    <Calendar className="w-7 h-7" />
+                    <CalendarDays className="w-7 h-7" />
                   </div>
                 </div>
 
-                <form onSubmit={handleSubmitBooking} className="space-y-8">
-                  <div className="grid grid-cols-1 gap-6">
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-end mb-1">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-foreground/40 ml-4">Arrival Date</label>
-                        {service?.metadata?.departureDates && (
-                          <span className="text-[9px] font-bold text-primary italic mr-4">Must be before {service.metadata.departureDates}</span>
-                        )}
-                      </div>
-                      <input
-                        type="date"
-                        required
-                        value={bookingDate}
-                        max={(() => {
-                           if (!service?.metadata?.departureDates) return undefined;
-                           const depDateStr = String(service.metadata.departureDates);
-                           const dateMatches = depDateStr.match(/(\d{4}-\d{2}-\d{2})|(\d{2}\/\d{2}\/\d{4})/g);
-                           if (dateMatches && dateMatches.length > 0) {
-                             const depTimestamps = dateMatches.map(d => new Date(d).getTime());
-                             const earliestDepTs = Math.min(...depTimestamps);
-                             const maxDate = new Date(earliestDepTs - 86400000); // 1 day before
-                             return maxDate.toISOString().split('T')[0];
-                           }
-                           return undefined;
-                        })()}
-                        onChange={(e) => setBookingDate(e.target.value)}
-                        className="w-full bg-foreground/[0.03] border-none focus:ring-2 ring-primary/20 rounded-3xl py-5 px-8 font-bold text-sm"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-foreground/40 ml-4">Travelers / Units</label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={bookingGuests}
-                        onChange={(e) => setBookingGuests(parseInt(e.target.value))}
-                        className="w-full bg-foreground/[0.03] border-none focus:ring-2 ring-primary/20 rounded-3xl py-5 px-8 font-bold text-sm"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-foreground/40 ml-4">Mission Directives (Optional)</label>
-                    <textarea
-                      placeholder="Any specific requests or requirements..."
-                      value={bookingNote}
-                      onChange={(e) => setBookingNote(e.target.value)}
-                      className="w-full bg-foreground/[0.03] border-none focus:ring-2 ring-primary/20 rounded-3xl py-5 px-8 font-medium text-sm h-32 resize-none"
-                    />
-                  </div>
-
-                  {errorMessage && (
-                    <div className="p-4 bg-red-500/5 text-red-500 rounded-2xl text-xs font-bold flex items-center gap-3 border border-red-500/10">
-                      <AlertTriangle className="w-4 h-4" /> {errorMessage}
-                    </div>
-                  )}
-
+                <div className="space-y-6">
+                  <p className="text-xs text-foreground/50 leading-relaxed">
+                    Ready to proceed? Click below to select your timeline configuration, manage team size allocations, and configure your reservation profile setup.
+                  </p>
+                  
                   <button
-                    type="submit"
-                    disabled={bookingStatus === "submitting" || bookingStatus === "success"}
-                    className="w-full bg-foreground text-background py-6 rounded-3xl text-sm font-black uppercase tracking-[0.2em] hover:bg-primary transition-all shadow-xl shadow-black/10 flex items-center justify-center gap-4 group disabled:opacity-50 disabled:bg-foreground/50"
+                    onClick={handleRedirectToBooking}
+                    className="w-full bg-foreground text-background py-6 rounded-3xl text-sm font-black uppercase tracking-[0.2em] hover:bg-primary hover:text-white transition-all shadow-xl shadow-black/10 flex items-center justify-center gap-4 group"
                   >
-                    {bookingStatus === "submitting" ? (
-                      <>Finalizing Reservation <Loader2 className="w-5 h-5 animate-spin" /></>
-                    ) : bookingStatus === "success" ? (
-                      <>Reservation Secured <ShieldCheck className="w-5 h-5" /></>
-                    ) : (
-                      <>Secure This Reservation <Send className="w-5 h-5 group-hover:translate-x-2 transition-transform" /></>
-                    )}
+                    Configure Booking <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
                   </button>
-                </form>
+                </div>
               </div>
 
               {/* Provider Info Card */}
@@ -538,7 +384,6 @@ export default function ServiceDetailPage() {
           </div>
         </div>
       </div>
-
     </div>
   );
 }

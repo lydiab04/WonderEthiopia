@@ -4,6 +4,12 @@ import { useState, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { X, CheckCircle2, Calendar, Car, Clock, CreditCard, Shield, AlertCircle, ChevronRight, MapPin, Fuel, Settings, Users, CalendarDays, DollarSign } from "lucide-react"
 
+
+interface Booking {
+  pick_up_date: string
+  return_date: string
+}
+
 export default function CarBookingPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -19,6 +25,8 @@ export default function CarBookingPage() {
     pick_up_date: new Date().toISOString().split('T')[0],
     return_date: new Date(Date.now() + 86400000).toISOString().split('T')[0]
   });
+  const [existingBookings, setExistingBookings] = useState<Booking | Booking[] | null>(null)
+  const [isOccupied,setIsOccupied]=useState(false);
 
   useEffect(() => {
     const id = searchParams.get("id")
@@ -27,6 +35,18 @@ export default function CarBookingPage() {
 
     if (id && price) {
       setSelectedCar({ id, price, name })
+      const getExistingBookings = async () => {
+        try {
+          const bookings = await fetch(`/api/bookings/cars/${id}`, { method: 'GET' })
+          const data = await bookings.json()
+          setExistingBookings(data.data)
+        } catch (err) {
+          console.error("Failed to fetch existing bookings:", err)
+        }
+      }
+      
+
+      getExistingBookings();
     } else {
       setError("Missing car information. Please go back and try again.")
     }
@@ -48,9 +68,10 @@ export default function CarBookingPage() {
   const numberOfDays = Math.max(0, Math.ceil(diffInMs / (1000 * 60 * 60 * 24)));
   const totalPrice = numberOfDays * dailyPrice;
   
-  const isPickupValid = start >= today;
-  const isReturnValid = end > start;
-  const isFormValid = isPickupValid && isReturnValid && numberOfDays > 0 && selectedCar;
+  const isPickUpValid = start >= new Date(new Date().setHours(0, 0, 0, 0))
+  const isReturnValid = end > start
+  const isFormValid = isPickUpValid && isReturnValid && numberOfDays > 0
+
 
   useEffect(()=>{
     const getCurrentUser=async()=>{
@@ -69,6 +90,30 @@ export default function CarBookingPage() {
 
   getCurrentUser();
   },[]);
+
+  useEffect(() => {
+      if (!dates.pick_up_date || !dates.return_date || !existingBookings) {
+        setIsOccupied(false)
+        return
+      }
+  
+      const newStart = new Date(dates.pick_up_date).getTime()
+      const newEnd = new Date(dates.return_date).getTime()
+  
+      // Helper to evaluate a single booking instance comparison
+      const checkOverlap = (booking: Booking) => {
+        const existingStart = new Date(booking.pick_up_date).getTime()
+        const existingEnd = new Date(booking.return_date).getTime()
+        return newStart < existingEnd && newEnd > existingStart
+      }
+  
+      // Adapt safely whether backend yields an array or a single payload object
+      if (Array.isArray(existingBookings)) {
+        setIsOccupied(existingBookings.some(checkOverlap))
+      } else {
+        setIsOccupied(checkOverlap(existingBookings))
+      }
+    }, [dates.pick_up_date, dates.return_date, existingBookings])
   
 
   const handleBooking = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -239,6 +284,19 @@ export default function CarBookingPage() {
                       </div>
                     </div>
                   </div>
+                   {!isPickUpValid && (
+                      <p className="text-xs text-red-500 mt-1">Check-in date cannot be in the past</p>
+                    )}
+                    {!isReturnValid && (
+                      <p className="text-xs text-red-500 mt-1">Check-out must be after check-in</p>
+                    )}
+
+                    {isOccupied && (
+                      <div className="mt-4 flex gap-2 items-center p-3 bg-amber-50 rounded-xl border-2 border-amber-500 text-amber-900 font-bold text-xs">
+                        <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                        <span>This car is occupied during your selected timeframe.</span>
+                      </div>
+                    )} 
                 </div>
 
                 {/* Price Breakdown: Using Cloud White surface */}
@@ -269,16 +327,7 @@ export default function CarBookingPage() {
                   </div>
                 </div>
 
-                {/* Insurance: Using soft Navy/Steel Blue tones */}
-                <div className="bg-[#415A77]/5 rounded-xl p-4 border border-[#415A77]/10">
-                  <div className="flex gap-3">
-                    <Shield className="w-5 h-5 text-primary flex-shrink-0" />
-                    <div className="text-sm">
-                      <p className="font-semibold text-[#1B263B] mb-1">Insurance Included</p>
-                      <p className="text-[#415A77]">Full coverage theft and damage protection included in your Amber-tier rental.</p>
-                    </div>
-                  </div>
-                </div>
+                
 
                 {/* Booking Button: Solid Amber */}
                 <button

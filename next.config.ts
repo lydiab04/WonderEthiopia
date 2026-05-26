@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["mongoose"],
   // @ts-ignore
   turbopack: {
-    root: "C:/Users/Amor/Desktop/WondarEthiopia/wonderethiopia",
+    root: "C:/Users/Yeabtesga/Desktop/school/wonderethiopia-current/WondarEthiopia",
   },
   async headers() {
     return [
@@ -32,7 +32,25 @@ const nextConfig: NextConfig = {
         hostname: "images.unsplash.com",
         pathname: "**",
       },
+      {
+        protocol:"https",
+        hostname:"visitethiopia.et",
+        pathname:"/**"
+      },{
+        protocol:"https",
+        hostname:"whc.unesco.org",
+        pathname:"/**"
+      }
     ],
+  },
+
+  async rewrites() {
+    return [
+      {
+        source: '/unesco-assets/:path*',
+        destination: 'https://whc.unesco.org/:path*',
+      },
+    ];
   },
 };
 

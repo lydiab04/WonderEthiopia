@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { Star, MapPin, ChevronLeft, Send, User, Calendar, MessageSquare } from "lucide-react";
 import { useSession } from "next-auth/react";
+import dynamic from "next/dynamic";
 
 interface Destination {
   _id: string;
@@ -15,6 +16,10 @@ interface Destination {
   city: string;
   images: string[];
   rating: number;
+  coordinates:{
+    latitude:number;
+    longitude:number;
+  }
 }
 
 interface Review {
@@ -66,6 +71,7 @@ export default function DestinationDetail() {
         setLoading(true);
         const res = await fetch(`/api/destinations/${id}`);
         const json = await res.json();
+        console.log(json)
         if (json.data) {
           setDestination(json.data);
           await fetchReviews();
@@ -79,6 +85,15 @@ export default function DestinationDetail() {
 
     fetchDestination();
   }, [id]);
+
+   const Map = useMemo(() => dynamic(
+    () => import('../../../../components/map'),
+    { 
+      loading: () => <p>A map is loading</p>,
+      ssr: false
+    }
+  ), [])
+
 
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,6 +144,7 @@ export default function DestinationDetail() {
     );
   }
 
+  
   if (!destination) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background px-6 text-center">
@@ -140,6 +156,10 @@ export default function DestinationDetail() {
       </div>
     );
   }
+
+  const latitude=destination.coordinates.latitude;
+  const longitude=destination.coordinates.longitude;
+
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
@@ -194,6 +214,7 @@ export default function DestinationDetail() {
             <p className="text-lg text-foreground/70 leading-relaxed whitespace-pre-line">
               {destination.description}
             </p>
+            <div><Map position={[latitude,longitude]} zoom={13}/></div>
           </div>
 
           {/* Reviews List */}

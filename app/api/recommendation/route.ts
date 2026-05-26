@@ -110,7 +110,7 @@ export async function GET(request: Request) {
     const results = recommend(userEmbedding, destinations, intents);
 
     // 5. Return the top 5
-    return NextResponse.json(results.slice(0, 5));
+    return NextResponse.json(results.slice(0, 9));
 
   } catch (error: any) {
     console.error("Recommendation Error:", error);

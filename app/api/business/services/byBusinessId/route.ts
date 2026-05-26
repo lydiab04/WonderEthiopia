@@ -4,17 +4,12 @@ import Service from "@/models/Service";
 import { NextResponse } from "next/server";
 import Business from "@/models/Business";
 
-export async function GET(request: Request,
-  { params }: { params: { id: string } }){
+export async function GET(request: Request){
     try{
+        
 const RegisterBusinessModel = Business.modelName;
         await dbConnect();
-        const {id}=await params;
-        console.log(id)
-
-        
-
-    const service = await Service.findOne({ _id: id }).populate("businessId");
+    const service = await Service.find().populate("businessId");
     console.log(service)
      return NextResponse.json(
               {

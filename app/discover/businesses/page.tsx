@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Search, MapPin, Star, ChevronRight, Filter, Coffee, Bed, Car, Calendar, Utensils, Box, Loader2, Building2, Compass } from "lucide-react";
+import { Search, MapPin, Star, ChevronRight, Bed, Car, Calendar, Box, Loader2, Building2, Compass, ChevronLeft } from "lucide-react";
 
 interface Service {
   _id: string;
@@ -51,7 +51,57 @@ export default function DiscoverBusinesses() {
   const [category, setCategory] = useState("all");
   const [region, setRegion] = useState("all");
 
+  const [preferences, setPreferences] = useState<string | null>(null);
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const ITEMS_PER_PAGE = 6;
+
   useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, region, category]);
+
+  // 1. Fetch user preferences on mount
+  useEffect(() => {
+    async function fetchUserPreferences() {
+      try {
+        const res = await fetch('/api/tourist/profile');
+        if (!res.ok) throw new Error("Failed to pull preference profile");
+        
+        const json = await res.json();
+        const profile = json.profile || {};
+
+        const userPreferencesObj = {
+          accommodationType: profile.accommodation_type,
+          amenities: Array.isArray(profile.amenities) ? profile.amenities.join(", ") : profile.amenities,
+          durationPreference: profile.duration_preference,
+          fitnessLevel: profile.fitness_level,
+          groupType: profile.group_type,
+          roomType: profile.room_type,
+          travelStyle: profile.travel_style,
+        };
+
+        const flatPreferencesString = Object.values(userPreferencesObj)
+          .filter(Boolean)
+          .join(", ");
+
+        if (flatPreferencesString) {
+          setPreferences(flatPreferencesString);
+        }
+      } catch (err) {
+        console.error("Error building user preferences data string:", err);
+      } finally {
+        setPreferencesLoaded(true);
+      }
+    }
+    
+    fetchUserPreferences();
+  }, []);
+
+  // 2. Fetch Services effect
+  useEffect(() => {
+    if (!preferencesLoaded) return;
+
     async function fetchServices() {
       try {
         setLoading(true);
@@ -61,18 +111,25 @@ export default function DiscoverBusinesses() {
           region: region
         });
         
-        const url = `/api/businesses/public?${params.toString()}`;
-        console.log("Fetching from:", url);
+        let res = null;
         
-        const res = await fetch(url);
-       
+        if (preferences) {
+          console.log('case1: Using vector recommendations');
+          res = await fetch(`/api/business-recommendation?preferences=${encodeURIComponent(preferences)}&${params.toString()}`, {
+            method: 'GET'
+          });
+        } else {
+          console.log('case2: Using fallback default API layout');
+          const url = `/api/businesses/public?${params.toString()}`;
+          res = await fetch(url);
+        }
         
         if (!res.ok) {
-           throw new Error(`Server returned ${res.status}`);
+          throw new Error(`Server returned ${res.status}`);
         }
         
         const data = await res.json();
-        setServices(data.services || []);
+        setServices(data.services || data); 
       } catch (error) {
         console.error("Failed to fetch services:", error);
       } finally {
@@ -85,17 +142,62 @@ export default function DiscoverBusinesses() {
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [searchQuery, category, region]);
+  }, [searchQuery, category, region, preferences, preferencesLoaded]);
 
   const categories = [
     { label: "All Categories", value: "all", icon: <Box /> },
-    { label: "Hotels", value: "hotel", icon: <Bed /> },
-    { label: "Tour Operators", value: "tour_operator", icon: <MapPin /> },
-    { label: "Events", value: "event_organizer", icon: <Calendar /> },
-    { label: "Car Rentals", value: "car_rental", icon: <Car /> },
+    { label: "Hotels", value: "room", icon: <Bed /> },
+    { label: "Tour Operators", value: "tour", icon: <MapPin /> },
+    { label: "Events", value: "event", icon: <Calendar /> },
+    { label: "Car Rentals", value: "car", icon: <Car /> },
   ];
 
   const regions = ["all", "Addis Ababa", "Amhara", "Oromia", "Tigray", "Afar", "Sidama"];
+
+  // FIX: Access regional strings correctly and implement category protection check safely
+  const filteredBusinesses = useMemo(() => {
+    return services.filter((serv) => {
+      const bizLocation = serv.businessId?.location;
+      const svcRegion = bizLocation?.region || "";
+      const svcCity = bizLocation?.city || "";
+      
+      const matchesRegion = region === "all" || svcRegion.toLowerCase() === region.toLowerCase();
+
+      // Front-end Category chips selection verification 
+      const rawCat = Array.isArray(serv.category) ? serv.category[0] : serv.category;
+      const matchesCategory = category === "all" || (rawCat && rawCat.toLowerCase().includes(category.toLowerCase()));
+
+      const cleanQuery = searchQuery.toLowerCase().trim();
+      const matchesSearch =
+        cleanQuery === "" ||
+        serv.name.toLowerCase().includes(cleanQuery) ||
+        svcCity.toLowerCase().includes(cleanQuery) ||
+        serv.description.toLowerCase().includes(cleanQuery);
+
+      return matchesRegion && matchesCategory && matchesSearch;
+    });
+  }, [services, searchQuery, region, category]);
+
+  // FIX: Use filtered calculations to accurately handle dynamic UI pagination requirements
+  const totalPages = Math.ceil(filteredBusinesses.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const visibleDestinations = useMemo(() => {
+    return filteredBusinesses.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredBusinesses, startIndex, ITEMS_PER_PAGE]);
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage((prev) => prev + 1);
+      window.scrollTo({ top: 400, behavior: 'smooth' });
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage((prev) => prev - 1);
+      window.scrollTo({ top: 400, behavior: 'smooth' });
+    }
+  };
 
   return (
     <div className="bg-background text-foreground font-sans py-10 lg:py-20">
@@ -113,24 +215,26 @@ export default function DiscoverBusinesses() {
             </div>
             
             {/* Category Filter Chips */}
-            <div className="flex flex-wrap gap-4 animate-slide-up delay-1">
-              {categories.slice(1).map((cat) => (
-                <button
-                  key={cat.value}
-                  onClick={() => setCategory(cat.value === category ? "all" : cat.value)}
-                  className={`px-8 py-4 rounded-3xl flex items-center gap-4 text-sm font-black tracking-wide transition-all duration-300 ${
-                    category === cat.value
-                      ? "bg-primary text-white shadow-2xl shadow-primary/30 -translate-y-1"
-                      : "bg-surface-elevated text-foreground/40 hover:text-primary hover:bg-white"
-                  }`}
-                >
-                  <span className={category === cat.value ? "text-white" : "text-primary"}>
-                    {cat.icon}
-                  </span>
-                  {cat.label}
-                </button>
-              ))}
-            </div>
+            {/* Category Filter Chips */}
+<div className="flex flex-wrap gap-4 animate-slide-up delay-1">
+  {/* REMOVED .slice(1) to let "All Categories" render */}
+  {categories.map((cat) => (
+    <button
+      key={cat.value}
+      onClick={() => setCategory(cat.value === category ? "all" : cat.value)}
+      className={`px-8 py-4 rounded-3xl flex items-center gap-4 text-sm font-black tracking-wide transition-all duration-300 ${
+        category === cat.value
+          ? "bg-primary text-white shadow-2xl shadow-primary/30 -translate-y-1"
+          : "bg-surface-elevated text-foreground/40 hover:text-primary hover:bg-white"
+      }`}
+    >
+      <span className={category === cat.value ? "text-white" : "text-primary"}>
+        {cat.icon}
+      </span>
+      {cat.label}
+    </button>
+  ))}
+</div>
           </div>
 
           {/* Combined Filters Glass */}
@@ -168,7 +272,7 @@ export default function DiscoverBusinesses() {
             <Loader2 className="w-12 h-12 text-primary/20 animate-spin mb-6" />
             <span className="text-[10px] font-black tracking-widest uppercase text-foreground/20">Syncing Catalog...</span>
           </div>
-        ) : services.length === 0 ? (
+        ) : filteredBusinesses.length === 0 ? (
           <div className="text-center py-48 rounded-[60px] border-4 border-dashed border-foreground/5 bg-surface-elevated/20">
             <div className="w-20 h-20 bg-primary/5 rounded-full flex items-center justify-center mx-auto mb-10 text-primary">
               <Search className="w-10 h-10" />
@@ -178,7 +282,8 @@ export default function DiscoverBusinesses() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
-            {services.map((svc) => (
+            {/* FIX: Render visibleDestinations instead of mapping raw unfiltered services directly */}
+            {visibleDestinations.map((svc) => (
               <div
                 key={svc._id}
                 className="group bg-white rounded-[60px] p-6 card-hover overflow-hidden shadow-2xl shadow-foreground/5 border border-foreground/[0.03]"
@@ -227,7 +332,7 @@ export default function DiscoverBusinesses() {
                     <div className="flex flex-col gap-1">
                       <span className="text-[11px] font-black text-foreground/50 flex items-center gap-2">
                         <MapPin className="w-4 h-4 text-primary/40" />
-                        {svc.businessId?.location.city}
+                        {svc.businessId?.location?.city}
                       </span>
                     </div>
                     <Link
@@ -240,6 +345,30 @@ export default function DiscoverBusinesses() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-6 mt-16">
+            <button
+              onClick={handlePrevPage}
+              disabled={currentPage === 1}
+              className="group flex items-center justify-center w-12 h-12 rounded-2xl border-2 border-foreground/10 bg-surface hover:border-primary hover:bg-primary/5 disabled:opacity-40 disabled:hover:border-foreground/10 disabled:hover:bg-surface disabled:cursor-not-allowed transition-all duration-300 shadow-lg shadow-foreground/5"
+            >
+              <ChevronLeft className="w-5 h-5 text-foreground/70 group-hover:text-primary transition-colors group-disabled:text-foreground/40" />
+            </button>
+
+            <span className="text-sm font-bold text-foreground/60 select-none">
+              Page <span className="text-foreground font-extrabold">{currentPage}</span> of {totalPages}
+            </span>
+
+            <button
+              onClick={handleNextPage}
+              disabled={currentPage === totalPages}
+              className="group flex items-center justify-center w-12 h-12 rounded-2xl border-2 border-foreground/10 bg-surface hover:border-primary hover:bg-primary/5 disabled:opacity-40 disabled:hover:border-foreground/10 disabled:hover:bg-surface disabled:cursor-not-allowed transition-all duration-300 shadow-lg shadow-foreground/5"
+            >
+              <ChevronRight className="w-5 h-5 text-foreground/70 group-hover:text-primary transition-colors group-disabled:text-foreground/40" />
+            </button>
           </div>
         )}
       </section>

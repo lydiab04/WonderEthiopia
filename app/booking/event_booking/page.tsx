@@ -63,8 +63,7 @@ export default function EventBookingPage() {
 
   const ticketPrice = eventData ? parseFloat(eventData.price.replace(/[^0-9.]/g, '')) : 0;
   const subtotal = ticketPrice * info.number_of_guests;
-  const serviceFee = subtotal * 0.03; // 3% service fee
-  const totalPrice = subtotal + serviceFee;
+  const totalPrice = subtotal ;
 
   const isFormValid = eventData && info.number_of_guests >= 1 && info.number_of_guests <= eventData.slots_available;
 
@@ -124,6 +123,7 @@ export default function EventBookingPage() {
           setIsBooked(true);
         }
       } else {
+        console.log(result.message||result.error)
         throw new Error(result.message || result.error || "Booking failed");
       }
     } catch (error: any) {
@@ -259,13 +259,7 @@ export default function EventBookingPage() {
                     </div>
                   </div>
 
-                  <div className="bg-[#F8F9FA] rounded-xl p-4 border border-[var(--border)]">
-                    <h3 className="font-semibold text-[#1B263B] text-sm mb-3 flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-primary" />
-                      Event Description
-                    </h3>
-                    <p className="text-sm text-[#415A77] leading-relaxed">{eventData.description}</p>
-                  </div>
+                  
                 </div>
 
                 {/* Right Column - Price Summary */}
@@ -298,16 +292,7 @@ export default function EventBookingPage() {
                     </div>
                   </div>
 
-                  {/* Benefit Box */}
-                  <div className="bg-[#415A77]/5 rounded-xl p-4 border border-[#415A77]/10">
-                    <div className="flex gap-3">
-                      <ShieldCheck className="w-5 h-5 text-primary flex-shrink-0" />
-                      <div className="text-sm">
-                        <p className="font-semibold text-[#1B263B] mb-1">Your Ticket Includes</p>
-                        <p className="text-[#415A77]">✓ Full Entry • ✓ Digital QR Ticket • ✓ Free cancellation (7 days notice)</p>
-                      </div>
-                    </div>
-                  </div>
+                  
 
                   {/* Booking Button: Primary Amber */}
                   <button 

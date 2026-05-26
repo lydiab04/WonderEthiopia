@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, MapPin, Star, Heart, ChevronRight } from "lucide-react";
+import { Search, MapPin, Star, Heart, ChevronRight, ChevronLeft, Loader2 } from "lucide-react";
 import { useSession } from "next-auth/react";
 
 interface Destination {
@@ -15,51 +15,54 @@ interface Destination {
   rating: number;
 }
 
+const ITEMS_PER_PAGE = 6;
+
 export default function DiscoverDestinations() {
   const { data: session } = useSession();
   const [destinations, setDestinations] = useState<Destination[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [region, setRegion] = useState("all");
   const [preferences, setPreferences] = useState<any>();
 
-  useEffect(() => {
-    async function fetchUserPreferences() {
-      try {
-        const res = await fetch('/api/user/profile');
-        if (res.ok) {
-          const data = await res.json();
-          setPreferences(data.user?.preferences);
-        }
-      } catch (error) {
-        console.error("Failed to fetch preferences:", error);
-      }
-    }
-    if (session) fetchUserPreferences();
-  }, [session]);
+  // 1. Fetch user preferences on mount/session change
+  useEffect(()=>{
+  async function fetchUserPreferences(){
+    const res=await fetch('/api/tourist/profile');
+    console.log(res);
+    const data=await res.json();
+    console.log(data);
+    setPreferences(data.profile?.interests)
+  }
+  fetchUserPreferences();
+ },[]);
+
 
   useEffect(() => {
     async function fetchDestinations() {
       try {
         setLoading(true);
-        let res: Response;
-
-        if (preferences && preferences.categories) {
-          res = await fetch(`/api/recommendation?preferences=${preferences.categories}`, {
-            method: 'GET'
+        let res=null;
+        console.log(preferences);
+        if(preferences!=null){
+          console.log('case1')
+           res=await fetch(`/api/recommendation?preferences=${preferences?.categories}`,{
+            method:'GET'
           });
-        } else {
+          console.log(res);
+        }
+        else{
+          console.log('case2')
           let url = `/api/destinations?search=${searchQuery}`;
-          if (region !== "all") url += `&region=${region}`;
-          res = await fetch(url);
-        }
+        if (region !== "all") url += `&region=${region}`;
 
-        if (res.ok) {
-          const data = await res.json();
-          setDestinations(Array.isArray(data) ? data : []);
-        } else {
-          setDestinations([]);
+         res = await fetch(url);
         }
+        
+        const data = await res.json();
+        console.log(data);
+        setDestinations(Array.isArray(data)?data : []);
       } catch (error) {
         console.error("Failed to fetch destinations:", error);
       } finally {
@@ -72,7 +75,49 @@ export default function DiscoverDestinations() {
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [searchQuery, region, preferences]);
+  }, [searchQuery, region,preferences]);
+
+  // 3. Client-side Search and Filter Engine
+  const filteredDestinations = useMemo(() => {
+    return destinations.filter((dest) => {
+      // Filter by Region dropdown
+      const matchesRegion = region === "all" || dest.region.toLowerCase() === region.toLowerCase();
+
+      // Filter by Search Query (Checking Name, City, and Description)
+      const cleanQuery = searchQuery.toLowerCase().trim();
+      const matchesSearch =
+        cleanQuery === "" ||
+        dest.name.toLowerCase().includes(cleanQuery) ||
+        dest.city.toLowerCase().includes(cleanQuery) ||
+        dest.description.toLowerCase().includes(cleanQuery);
+
+      return matchesRegion && matchesSearch;
+    });
+  }, [destinations, searchQuery, region]);
+
+  // 4. Reset page to 1 instantly when search query or region changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, region]);
+
+  // 5. Pagination Logic based on dynamic filtered data
+  const totalPages = Math.ceil(filteredDestinations.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const visibleDestinations = filteredDestinations.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage((prev) => prev + 1);
+      window.scrollTo({ top: 400, behavior: 'smooth' });
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage((prev) => prev - 1);
+      window.scrollTo({ top: 400, behavior: 'smooth' });
+    }
+  };
 
   const regions = [
     "all",
@@ -144,69 +189,96 @@ export default function DiscoverDestinations() {
               <div key={n} className="h-[450px] rounded-[40px] bg-surface animate-shimmer" />
             ))}
           </div>
-        ) : destinations.length === 0 ? (
+        ) : filteredDestinations.length === 0 ? (
           <div className="text-center py-32 rounded-3xl border-2 border-dashed border-foreground/5">
             <p className="text-foreground/40 font-semibold italic text-lg">
               No destinations found for your search.
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {destinations?.map((dest) => (
-              <div
-                key={dest._id}
-                className="group bg-surface rounded-[40px] p-4 card-hover overflow-hidden shadow-xl shadow-foreground/5 border border-foreground/[0.03]"
-              >
-                <div className="relative h-72 rounded-[32px] overflow-hidden mb-6 shadow-inner">
-                  {dest.images && dest.images[0] ? (
-                    <img
-                      src={dest.images[0]}
-                      alt={dest.name}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center text-primary/30">
-                      <Star className="w-12 h-12" />
-                    </div>
-                  )}
-                  <div className="absolute top-4 right-4 group-hover:scale-110 transition-transform duration-300">
-                    <button className="w-10 h-10 rounded-full glass flex items-center justify-center hover:bg-white hover:text-red-500 transition-colors">
-                      <Heart className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="px-4 pb-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <h3 className="text-2xl font-bold text-foreground group-hover:text-primary transition-colors pr-2">
-                      {dest.name}
-                    </h3>
-                    <div className="flex items-center gap-1 text-[12px] font-bold text-primary bg-primary/5 px-2 py-1 rounded-full">
-                      <Star className="w-3.5 h-3.5 fill-current" />
-                      {dest.rating ? dest.rating.toFixed(1) : "New"}
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {visibleDestinations.map((dest) => (
+                <div
+                  key={dest._id}
+                  className="group bg-surface rounded-[40px] p-4 card-hover overflow-hidden shadow-xl shadow-foreground/5 border border-foreground/[0.03]"
+                >
+                  <div className="relative h-72 rounded-[32px] overflow-hidden mb-6 shadow-inner">
+                    {dest.images && dest.images[0] ? (
+                      <img
+                        src={dest.images[0]}
+                        alt={dest.name}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center text-primary/30">
+                        <Star className="w-12 h-12" />
+                      </div>
+                    )}
+                    <div className="absolute top-4 right-4 group-hover:scale-110 transition-transform duration-300">
+                      <button className="w-10 h-10 rounded-full glass flex items-center justify-center hover:bg-white hover:text-red-500 transition-colors">
+                        <Heart className="w-5 h-5" />
+                      </button>
                     </div>
                   </div>
 
-                  <p className="text-sm text-foreground/50 mb-8 line-clamp-2 leading-relaxed font-medium">
-                    {dest.description}
-                  </p>
+                  <div className="px-4 pb-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <h3 className="text-2xl font-bold text-foreground group-hover:text-primary transition-colors pr-2">
+                        {dest.name}
+                      </h3>
+                      <div className="flex items-center gap-1 text-[12px] font-bold text-primary bg-primary/5 px-2 py-1 rounded-full">
+                        <Star className="w-3.5 h-3.5 fill-current" />
+                        {dest.rating ? dest.rating.toFixed(1) : "New"}
+                      </div>
+                    </div>
 
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-foreground/30 flex items-center gap-2 uppercase tracking-wider">
-                      <MapPin className="w-3 h-3" />
-                      {dest.city}, {dest.region}
-                    </span>
-                    <Link
-                      href={`/discover/destinations/${dest._id}`}
-                      className="w-12 h-12 rounded-full bg-foreground text-background flex items-center justify-center group-hover:bg-primary transition-all duration-300 shadow-lg shadow-black/10"
-                    >
-                      <ChevronRight className="w-6 h-6" />
-                    </Link>
+                    <p className="text-sm text-foreground/50 mb-8 line-clamp-2 leading-relaxed font-medium">
+                      {dest.description}
+                    </p>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-foreground/30 flex items-center gap-2 uppercase tracking-wider">
+                        <MapPin className="w-3 h-3" />
+                        {dest.city}, {dest.region}
+                      </span>
+                      <Link
+                        href={`/discover/destinations/${dest._id}`}
+                        className="w-12 h-12 rounded-full bg-foreground text-background flex items-center justify-center group-hover:bg-primary transition-all duration-300 shadow-lg shadow-black/10"
+                      >
+                        <ChevronRight className="w-6 h-6" />
+                      </Link>
+                    </div>
                   </div>
                 </div>
+              ))}
+            </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-6 mt-16">
+                <button
+                  onClick={handlePrevPage}
+                  disabled={currentPage === 1}
+                  className="group flex items-center justify-center w-12 h-12 rounded-2xl border-2 border-foreground/10 bg-surface hover:border-primary hover:bg-primary/5 disabled:opacity-40 disabled:hover:border-foreground/10 disabled:hover:bg-surface disabled:cursor-not-allowed transition-all duration-300 shadow-lg shadow-foreground/5"
+                >
+                  <ChevronLeft className="w-5 h-5 text-foreground/70 group-hover:text-primary transition-colors group-disabled:text-foreground/40" />
+                </button>
+
+                <span className="text-sm font-bold text-foreground/60 select-none">
+                  Page <span className="text-foreground font-extrabold">{currentPage}</span> of {totalPages}
+                </span>
+
+                <button
+                  onClick={handleNextPage}
+                  disabled={currentPage === totalPages}
+                  className="group flex items-center justify-center w-12 h-12 rounded-2xl border-2 border-foreground/10 bg-surface hover:border-primary hover:bg-primary/5 disabled:opacity-40 disabled:hover:border-foreground/10 disabled:hover:bg-surface disabled:cursor-not-allowed transition-all duration-300 shadow-lg shadow-foreground/5"
+                >
+                  <ChevronRight className="w-5 h-5 text-foreground/70 group-hover:text-primary transition-colors group-disabled:text-foreground/40" />
+                </button>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
       </section>
     </div>

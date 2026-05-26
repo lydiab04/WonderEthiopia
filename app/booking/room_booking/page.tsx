@@ -10,22 +10,30 @@ interface HotelData {
   name: string
 }
 
+interface Booking {
+  check_in_date: string
+  check_out_date: string
+}
+
 export default function RoomBookingPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
+  const [isOccupied, setIsOccupied] = useState(false)
   
-  const [currentUser,setCurrentUser]=useState(null);
+  const [currentUser, setCurrentUser] = useState<any>(null)
   const [isBooked, setIsBooked] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  
   const [info, setInfo] = useState({
     check_in_date: new Date().toISOString().split('T')[0],
     check_out_date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
     number_of_guests: 1
   })
   const [hotelData, setHotelData] = useState<HotelData | null>(null)
+  const [existingBookings, setExistingBookings] = useState<Booking | Booking[] | null>(null)
 
-  // Sync with URL parameters
+  // 1. Sync with URL parameters & Fetch Bookings
   useEffect(() => {
     const id = searchParams.get("id")
     const price = searchParams.get("price")
@@ -33,16 +41,68 @@ export default function RoomBookingPage() {
 
     if (id && price) {
       setHotelData({ id, price, name })
+      
+      const getExistingBookings = async () => {
+        try {
+          const bookings = await fetch(`/api/bookings/rooms/${id}`, { method: 'GET' })
+          const data = await bookings.json()
+          setExistingBookings(data.data)
+        } catch (err) {
+          console.error("Failed to fetch existing bookings:", err)
+        }
+      }
+      getExistingBookings()
     } else {
-      // Handle missing data
       setError("Missing room information. Please go back and try again.")
     }
   }, [searchParams])
 
+  // 2. Fetch User Profile
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      try {
+        const response = await fetch("/api/user/profile", {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        })
+        const user = await response.json()
+        setCurrentUser(user.user)
+      } catch (err) {
+        console.error(err)
+      }
+    }
+    getCurrentUser()
+  }, [])
+
+  // 3. Overlap Check (Fixed Reference from hotelData -> info)
+  useEffect(() => {
+    if (!info.check_in_date || !info.check_out_date || !existingBookings) {
+      setIsOccupied(false)
+      return
+    }
+
+    const newStart = new Date(info.check_in_date).getTime()
+    const newEnd = new Date(info.check_out_date).getTime()
+
+    // Helper to evaluate a single booking instance comparison
+    const checkOverlap = (booking: Booking) => {
+      const existingStart = new Date(booking.check_in_date).getTime()
+      const existingEnd = new Date(booking.check_out_date).getTime()
+      return newStart < existingEnd && newEnd > existingStart
+    }
+
+    // Adapt safely whether backend yields an array or a single payload object
+    if (Array.isArray(existingBookings)) {
+      setIsOccupied(existingBookings.some(checkOverlap))
+    } else {
+      setIsOccupied(checkOverlap(existingBookings))
+    }
+  }, [info.check_in_date, info.check_out_date, existingBookings])
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setInfo(prev => ({ ...prev, [name]: value }))
-    setError(null) // Clear error when user makes changes
+    setError(null)
   }
 
   // Calculate total price
@@ -52,36 +112,17 @@ export default function RoomBookingPage() {
   const diffInMs = end.getTime() - start.getTime()
   const numberOfDays = Math.max(0, Math.ceil(diffInMs / (1000 * 60 * 60 * 24)))
   const numberOfPeople = info.number_of_guests
+
   const basePrice = numberOfDays * dailyPrice
-  const guestMultiplier = numberOfPeople * 0.5 // 50% extra per additional guest
-  const totalPrice = numberOfDays * dailyPrice * (1 + guestMultiplier)
+  const extraGuests = Math.max(0, numberOfPeople - 1)
+  const guestMultiplier = extraGuests * 0.5
+  const totalPrice = numberOfPeople === 0 ? 0 : basePrice * (1 + guestMultiplier)
   
   // Validate dates
   const isCheckInValid = start >= new Date(new Date().setHours(0, 0, 0, 0))
   const isCheckOutValid = end > start
-  const isFormValid = isCheckInValid && isCheckOutValid && numberOfPeople > 0 && hotelData
-
-
-  useEffect(()=>{
-    const getCurrentUser=async()=>{
-    try{
-        const response=await fetch("/api/user/profile",{
-             method: "GET",
-        headers: { "Content-Type": "application/json" },
-        });
-        const user=await response.json();
-        console.log(user);
-        setCurrentUser(user.user);
-    }catch(error){
-        console.log(error);
-    }
-  }
-
-  getCurrentUser();
-  },[]);
-  
-
-  
+  // Added !isOccupied validation guard directly to button block state
+  const isFormValid = isCheckInValid && isCheckOutValid && numberOfPeople > 0 && hotelData && !isOccupied
 
   const handleRoomBooking = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -92,7 +133,6 @@ export default function RoomBookingPage() {
 
     setLoading(true)
     setError(null)
-    
     try {
       const payload = {
         check_in_date: info.check_in_date,
@@ -103,7 +143,6 @@ export default function RoomBookingPage() {
         user_id: currentUser?._id,
         currency: "ETB"
       }
-      console.log(payload)
       const res = await fetch("/api/bookings/rooms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -128,8 +167,6 @@ export default function RoomBookingPage() {
       setLoading(false)
     }
   }
-
-  if(error) console.log(error)
 
   if (error && !hotelData) {
     return (
@@ -162,7 +199,7 @@ export default function RoomBookingPage() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-4">
-     <div className="bg-white w-full max-w-3xl rounded-3xl border-4 border-black shadow-[16px_16px_0px_0px_theme(colors.primary)] overflow-hidden">
+     <div className="bg-white w-full max-w-3xl rounded-3xl border-4 border-black shadow-[16px_16px_0px_0px_rgba(45,90,45,1)] overflow-hidden">
         
         {isBooked ? (
           <div className="p-12 md:p-20 text-center space-y-8">
@@ -194,7 +231,6 @@ export default function RoomBookingPage() {
           </div>
         ) : (
           <>
-            {/* Modal Header */}
             <div className="p-6 md:p-8 bg-primary text-white flex justify-between items-start">
               <div className="space-y-2">
                 <span className="bg-white/20 text-white text-[10px] font-black px-2 py-1 rounded uppercase tracking-widest inline-block">
@@ -207,7 +243,7 @@ export default function RoomBookingPage() {
               </div>
               <button 
                 onClick={() => router.back()} 
-                className="p-2 bg-black/20 hover:bg-black/40 rounded-full transition-colors"
+                className="p-2 bg-white/20 hover:bg-white/40 rounded-full transition-colors"
               >
                 <X className="w-6 h-6 text-white" />
               </button>
@@ -215,13 +251,12 @@ export default function RoomBookingPage() {
 
             <form onSubmit={handleRoomBooking} className="p-6 md:p-10">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* Left Column: Date Selection */}
                 <div className="space-y-6">
                   <div>
                     <label className="text-xs font-black text-black uppercase block mb-2 flex items-center gap-2">
                       <Calendar className="w-4 h-4" /> Select Dates
                     </label>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-4 animate-clean">
                       <div>
                         <label className="text-xs font-semibold text-gray-600 block mb-1">Check-In</label>
                         <input 
@@ -231,7 +266,7 @@ export default function RoomBookingPage() {
                           required 
                           type="date" 
                           min={new Date().toISOString().split('T')[0]}
-                          className="form-control w-full p-3 rounded-xl border-2 border-gray-200 font-bold text-sm focus:border-primary focus:outline-none transition-colors" 
+                          className="form-control w-full p-3 rounded-xl border-2 border-gray-200 font-bold text-sm focus:border-black focus:outline-none transition-colors" 
                         />
                       </div>
                       <div>
@@ -243,16 +278,25 @@ export default function RoomBookingPage() {
                           required 
                           type="date" 
                           min={info.check_in_date}
-                          className="w-full p-3 rounded-xl border-2 border-gray-200 font-bold text-sm focus:border-primary focus:outline-none transition-colors" 
+                          className="w-full p-3 rounded-xl border-2 border-gray-200 font-bold text-sm focus:border-black focus:outline-none transition-colors" 
                         />
                       </div>
                     </div>
+                    
                     {!isCheckInValid && (
-                      <p className="text-xs text-red-500 mt-1">Check-in date cannot be in the past</p>
+                      <p className="text-xs text-red-500 mt-2 font-bold">Check-in date cannot be in the past</p>
                     )}
                     {!isCheckOutValid && (
-                      <p className="text-xs text-red-500 mt-1">Check-out must be after check-in</p>
+                      <p className="text-xs text-red-500 mt-2 font-bold">Check-out must be after check-in</p>
                     )}
+
+                    {/* Integrated Neo-brutalist alert callout UI */}
+                    {isOccupied && (
+                      <div className="mt-4 flex gap-2 items-center p-3 bg-amber-50 rounded-xl border-2 border-amber-500 text-amber-900 font-bold text-xs">
+                        <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                        <span>This room is occupied during your selected timeframe.</span>
+                      </div>
+                    )} 
                   </div>
 
                   <div>
@@ -266,12 +310,11 @@ export default function RoomBookingPage() {
                       type="number" 
                       min="1" 
                       max="10"
-                      className="w-full p-3 rounded-xl border-2 border-gray-200 font-bold focus:border-primary focus:outline-none transition-colors" 
+                      className="w-full p-3 rounded-xl border-2 border-gray-200 font-bold focus:border-black focus:outline-none transition-colors" 
                     />
                   </div>
                 </div>
 
-                {/* Right Column: Price Summary */}
                 <div className="space-y-6">
                   <div className="p-6 bg-gray-50 rounded-2xl border-2 border-gray-200 space-y-4">
                     <h3 className="font-black text-black text-sm uppercase tracking-wider">Price Breakdown</h3>
@@ -299,7 +342,7 @@ export default function RoomBookingPage() {
                       <div className="border-t-2 border-dashed border-gray-300 pt-3 mt-3">
                         <div className="flex justify-between items-end">
                           <span className="font-black text-xs uppercase tracking-wider">Total Amount:</span>
-                          <span className="text-3xl font-black text-primary">{Math.round(totalPrice)} ETB</span>
+                          <span className="text-3xl font-black text-black">{Math.round(totalPrice)} ETB</span>
                         </div>
                       </div>
                     </div>
@@ -323,7 +366,7 @@ export default function RoomBookingPage() {
                   <button 
                     type="submit" 
                     disabled={loading || !isFormValid}
-                    className="w-full bg-black text-white py-4 rounded-2xl font-black text-lg uppercase tracking-widest hover:bg-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full bg-black text-white py-4 rounded-2xl font-black text-lg uppercase tracking-widest hover:bg-red-600 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
                   >
                     {loading ? (
                       <span className="flex items-center justify-center gap-2">

@@ -7,8 +7,10 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    const {id}=await params;
     await dbConnect();
-    const destination = await Destination.findById(params.id);
+    const destination = await Destination.findById(id);
+
 
     if (!destination) {
       return NextResponse.json({ error: "Destination not found" }, { status: 404 });
