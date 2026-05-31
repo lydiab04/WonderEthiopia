@@ -29,13 +29,13 @@ const nextConfig: NextConfig = {
         pathname: "**",
       },
       {
-        protocol:"https",
-        hostname:"visitethiopia.et",
-        pathname:"/**"
-      },{
-        protocol:"https",
-        hostname:"whc.unesco.org",
-        pathname:"/**"
+        protocol: "https",
+        hostname: "visitethiopia.et",
+        pathname: "/**"
+      }, {
+        protocol: "https",
+        hostname: "whc.unesco.org",
+        pathname: "/**"
       }
     ],
   },
