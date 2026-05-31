@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import CarBooking from "@/models/CarBooking";
 import { registerPayment } from "../../payments/route";
+import Service from "@/models/Service";
 
 
 export async function POST(request: Request) {
@@ -15,6 +16,11 @@ export async function POST(request: Request) {
         // 1. Validation
         if (!pick_up_date || !return_date || !user_id || !car_id || !total_price) {
             return NextResponse.json({ error: "All fields are required" }, { status: 400 });
+        }
+
+        const service = await Service.findById(car_id);
+        if (!service || service.availability?.quantity <= 0) {
+            return NextResponse.json({ error: "This car is currently out of stock/unavailable" }, { status: 400 });
         }
 
         // 2. Initiate Payment
@@ -33,6 +39,18 @@ if (!payment_id) {
     throw new Error("Payment initiation failed");
 }
 
+
+const updatedCar = await Service.findOneAndUpdate(
+            { _id: car_id, "availability.quantity": { $gt: 0 } }, 
+            { $inc: { "availability.quantity": -1 } },
+            { new: true } 
+        );
+
+        if (!updatedCar) {
+            // If this fails, it means someone else booked the last car right before this request finished.
+            // In production, you would ideally refund the payment here.
+            throw new Error("Car inventory update failed. Car might be out of stock.");
+        }
         // 4. Create Booking
         const newBooking = await CarBooking.create({
             user_id,

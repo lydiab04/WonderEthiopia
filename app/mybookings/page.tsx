@@ -19,27 +19,28 @@ export default function MyBookings() {
   const [selectedDetails, setSelectedDetails] = useState(null);
 
   useEffect(() => {
-    const getRoomBookings = async () => {
-      try {
-        const res = await fetch("/api/bookings/rooms", {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-        });
+   const getRoomBookings = async () => {
+  try {
+    const res = await fetch("/api/bookings/rooms", {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
 
-        if (!res.ok) throw new Error("Failed to fetch room bookings");
-        const json = await res.json();
+    if (!res.ok) {throw new Error("Failed to fetch room bookings");}
+    const json = await res.json();
 
-        if (!json.data || json.data.length === 0) {
-          setRoomBookings([]);
-          return;
-        }
+    if (!json.data || json.data.length === 0) {
+      setRoomBookings([]);
+      return;
+    }
 
-        const firstBooking = json.data[0];
-        const serviceId = firstBooking.room_id;
-        const paymentId = firstBooking.payment_id;
+    // Use Promise.all to map over ALL bookings concurrently
+    const allRoomBookings = await Promise.all(
+      json.data.map(async (booking) => {
+        const serviceId = booking.room_id;
+        const paymentId = booking.payment_id;
 
         let serviceDetails = null;
-
         if (serviceId) {
           try {
             const business = await fetch(`/api/business/services/byBusinessId/${serviceId}`);
@@ -57,7 +58,6 @@ export default function MyBookings() {
           try {
             const paymentRes = await fetch(`/api/payments/${paymentId}`);
             const jsonPayment = await paymentRes.json();
-
             if (jsonPayment.data && Array.isArray(jsonPayment.data) && jsonPayment.data.length > 0) {
               paymentInfo = jsonPayment.data[0];
             } else if (jsonPayment.data && !Array.isArray(jsonPayment.data)) {
@@ -68,49 +68,51 @@ export default function MyBookings() {
           }
         }
 
-        const bookingData = {
-          id: firstBooking._id,
+        return {
+          id: booking._id,
           type: 'room',
           title: serviceDetails?.name || "Luxury Room Reservation",
           businessName: serviceDetails?.businessId?.name || "Unknown Hotel",
           image: serviceDetails?.images?.[0],
           description: serviceDetails?.description || "No description provided.",
           features: serviceDetails?.features || [],
-          number_of_guests: firstBooking.number_of_guests,
-          total_price: firstBooking.total_price,
+          number_of_guests: booking.number_of_guests,
+          total_price: booking.total_price,
           method: paymentInfo.method ?? "Not specified",
           transaction_id: paymentInfo.transaction_id ?? "N/A",
           status: paymentInfo.status ?? "pending",
-          rawBooking: firstBooking
+          rawBooking: booking
         };
+      })
+    );
 
-        setRoomBookings([bookingData]);
-      } catch (error) {
-        console.error("Error in getRoomBookings:", error.message);
-      }
-    };
+    setRoomBookings(allRoomBookings); // Pass the whole array instead of just one item
+  } catch (error) {
+    console.error("Error in getRoomBookings:", error.message);
+  }
+};
 
-    const getCarBookings = async () => {
-      try {
-        const res = await fetch("/api/bookings/cars", {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-        });
+const getCarBookings = async () => {
+  try {
+    const res = await fetch("/api/bookings/cars", {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
 
-        if (!res.ok) throw new Error("Failed to fetch car bookings");
-        const json = await res.json();
+    if (!res.ok) throw new Error("Failed to fetch car bookings");
+    const json = await res.json();
 
-        if (!json.data || json.data.length === 0) {
-          setCarBookings([]);
-          return;
-        }
+    if (!json.data || json.data.length === 0) {
+      setCarBookings([]);
+      return;
+    }
 
-        const firstCarBooking = json.data[0];
-        const carServiceId = firstCarBooking.car_id || firstCarBooking.service_id;
-        const paymentId = firstCarBooking.payment_id;
+    const allCarBookings = await Promise.all(
+      json.data.map(async (booking) => {
+        const carServiceId = booking.car_id || booking.service_id;
+        const paymentId = booking.payment_id;
 
         let carDetails = null;
-
         if (carServiceId) {
           try {
             const business = await fetch(`/api/business/services/byBusinessId/${carServiceId}`);
@@ -128,7 +130,6 @@ export default function MyBookings() {
           try {
             const paymentRes = await fetch(`/api/payments/${paymentId}`);
             const jsonPayment = await paymentRes.json();
-
             if (jsonPayment.data && Array.isArray(jsonPayment.data) && jsonPayment.data.length > 0) {
               paymentInfo = jsonPayment.data[0];
             } else if (jsonPayment.data && !Array.isArray(jsonPayment.data)) {
@@ -139,49 +140,51 @@ export default function MyBookings() {
           }
         }
 
-        const bookingData = {
-          id: firstCarBooking._id,
+        return {
+          id: booking._id,
           type: 'car',
           title: carDetails?.name || "Premium Car Rental",
           image: carDetails?.images?.[0],
           description: carDetails?.description || "No description provided.",
           features: carDetails?.features || [],
           businessName: carDetails?.businessId?.name || "Unknown Agency",
-          number_of_guests: firstCarBooking.number_of_people || firstCarBooking.number_of_guests,
-          total_price: firstCarBooking.total_price,
+          number_of_guests: booking.number_of_people || booking.number_of_guests,
+          total_price: booking.total_price,
           method: paymentInfo.method ?? "Not specified",
           transaction_id: paymentInfo.transaction_id ?? "N/A",
           status: paymentInfo.status ?? "pending",
-          rawBooking: firstCarBooking
+          rawBooking: booking
         };
+      })
+    );
 
-        setCarBookings([bookingData]);
-      } catch (error) {
-        console.error("Error in getCarBookings:", error.message);
-      }
-    };
+    setCarBookings(allCarBookings);
+  } catch (error) {
+    console.error("Error in getCarBookings:", error.message);
+  }
+};
 
-    const getTourBookings = async () => {
-      try {
-        const res = await fetch("/api/bookings/tours", {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-        });
+const getTourBookings = async () => {
+  try {
+    const res = await fetch("/api/bookings/tours", {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
 
-        if (!res.ok) throw new Error("Failed to fetch tour bookings");
-        const json = await res.json();
+    if (!res.ok) throw new Error("Failed to fetch tour bookings");
+    const json = await res.json();
 
-        if (!json.data || json.data.length === 0) {
-          setTourBookings([]);
-          return;
-        }
+    if (!json.data || json.data.length === 0) {
+      setTourBookings([]);
+      return;
+    }
 
-        const firstTourBooking = json.data[0];
-        const tourServiceId = firstTourBooking.tour_id || firstTourBooking.service_id;
-        const paymentId = firstTourBooking.payment_id;
+    const allTourBookings = await Promise.all(
+      json.data.map(async (booking) => {
+        const tourServiceId = booking.tour_id || booking.service_id;
+        const paymentId = booking.payment_id;
 
         let tourDetails = null;
-
         if (tourServiceId) {
           try {
             const business = await fetch(`/api/business/services/byBusinessId/${tourServiceId}`);
@@ -199,7 +202,6 @@ export default function MyBookings() {
           try {
             const paymentRes = await fetch(`/api/payments/${paymentId}`);
             const jsonPayment = await paymentRes.json();
-
             if (jsonPayment.data && Array.isArray(jsonPayment.data) && jsonPayment.data.length > 0) {
               paymentInfo = jsonPayment.data[0];
             } else if (jsonPayment.data && !Array.isArray(jsonPayment.data)) {
@@ -210,49 +212,51 @@ export default function MyBookings() {
           }
         }
 
-        const bookingData = {
-          id: firstTourBooking._id,
-          type: 'tour', // FIXED type
+        return {
+          id: booking._id,
+          type: 'tour',
           title: tourDetails?.name || "Guided Wilderness Tour",
           image: tourDetails?.images?.[0],
           description: tourDetails?.description || "No description provided.",
           features: tourDetails?.features || [],
           businessName: tourDetails?.businessId?.name || "Unknown Agency",
-          number_of_guests: firstTourBooking.number_of_people || firstTourBooking.number_of_guests,
-          total_price: firstTourBooking.total_price,
+          number_of_guests: booking.number_of_people || booking.number_of_guests,
+          total_price: booking.total_price,
           method: paymentInfo.method ?? "Not specified",
           transaction_id: paymentInfo.transaction_id ?? "N/A",
           status: paymentInfo.status ?? "pending",
-          rawBooking: firstTourBooking
+          rawBooking: booking
         };
+      })
+    );
 
-        setTourBookings([bookingData]);
-      } catch (error) {
-        console.error("Error in getTour:", error.message);
-      }
-    };
+    setTourBookings(allTourBookings);
+  } catch (error) {
+    console.error("Error in getTourBookings:", error.message);
+  }
+};
 
-    const getEventBookings = async () => {
-      try {
-        const res = await fetch("/api/bookings/events", {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-        });
+const getEventBookings = async () => {
+  try {
+    const res = await fetch("/api/bookings/events", {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
 
-        if (!res.ok) throw new Error("Failed to fetch event bookings");
-        const json = await res.json();
+    if (!res.ok) throw new Error("Failed to fetch event bookings");
+    const json = await res.json();
 
-        if (!json.data || json.data.length === 0) {
-          setEventBookings([]);
-          return;
-        }
+    if (!json.data || json.data.length === 0) {
+      setEventBookings([]);
+      return;
+    }
 
-        const firstEventBooking = json.data[0];
-        const eventServiceId = firstEventBooking.event_id || firstEventBooking.service_id;
-        const paymentId = firstEventBooking.payment_id;
+    const allEventBookings = await Promise.all(
+      json.data.map(async (booking) => {
+        const eventServiceId = booking.event_id || booking.service_id;
+        const paymentId = booking.payment_id;
 
         let eventDetails = null;
-
         if (eventServiceId) {
           try {
             const business = await fetch(`/api/business/services/byBusinessId/${eventServiceId}`);
@@ -270,7 +274,6 @@ export default function MyBookings() {
           try {
             const paymentRes = await fetch(`/api/payments/${paymentId}`);
             const jsonPayment = await paymentRes.json();
-
             if (jsonPayment.data && Array.isArray(jsonPayment.data) && jsonPayment.data.length > 0) {
               paymentInfo = jsonPayment.data[0];
             } else if (jsonPayment.data && !Array.isArray(jsonPayment.data)) {
@@ -281,28 +284,29 @@ export default function MyBookings() {
           }
         }
 
-        const bookingData = {
-          id: firstEventBooking._id,
-          type: 'event', // FIXED type
+        return {
+          id: booking._id,
+          type: 'event',
           title: eventDetails?.name || "Special Ticketed Event",
           image: eventDetails?.images?.[0],
           description: eventDetails?.description || "No description provided.",
           features: eventDetails?.features || [],
           businessName: eventDetails?.businessId?.name || "Unknown Agency",
-          number_of_guests: firstEventBooking.number_of_people || firstEventBooking.number_of_guests,
-          total_price: firstEventBooking.total_price,
+          number_of_guests: booking.number_of_people || booking.number_of_guests,
+          total_price: booking.total_price,
           method: paymentInfo.method ?? "Not specified",
           transaction_id: paymentInfo.transaction_id ?? "N/A",
           status: paymentInfo.status ?? "pending",
-          rawBooking: firstEventBooking
+          rawBooking: booking
         };
+      })
+    );
 
-        setEventBookings([bookingData]);
-      } catch (error) {
-        console.error("Error in getEventBookings:", error.message);
-      }
-    };
-
+    setEventBookings(allEventBookings);
+  } catch (error) {
+    console.error("Error in getEventBookings:", error.message);
+  }
+};
     Promise.allSettled([getRoomBookings(), getCarBookings(), getEventBookings(), getTourBookings()]);
   }, []);
 

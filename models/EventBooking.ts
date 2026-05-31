@@ -26,6 +26,7 @@ const eventRSVPSchema=new mongoose.Schema({
     }
 },{timestamps:true});
 
-const EventBooking=mongoose.model('eventBooking',eventRSVPSchema);
+
+const EventBooking = mongoose.models.eventBooking || mongoose.model('eventBooking', eventRSVPSchema);
 
 export default EventBooking;

@@ -7,15 +7,15 @@ import EventBooking from "@/models/EventBooking";
 import Service from "@/models/Service";
 export async function POST(request: Request) {
     try {
-        await dbConnect(); 
-        
+        await dbConnect();
+
         const body = await request.json();
-        
+
         const { number_of_tickets, user_id, event_id, total_price, currency } = body;
         console.log(body);
         // 1. Validation
         if (!number_of_tickets || !user_id || !event_id || !total_price) {
-            return NextResponse.json({ error: "All fields are required",data:body }, { status: 400 });
+            return NextResponse.json({ error: "All fields are required", data: body }, { status: 400 });
         }
 
         // 1.5 Capacity Check
@@ -24,12 +24,16 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "Event service not found" }, { status: 404 });
         }
 
+        if (!service || service?.availability?.quantity <= 0) {
+            return NextResponse.json({ error: "This car is currently out of stock/unavailable" }, { status: 400 });
+        }
+
         const maxCapacity = service.availability?.quantity || service.metadata?.capacity || service.metadata?.maxOccupancy || service.metadata?.eventCapacity || 0;
-        
+
         if (maxCapacity > 0) {
             const existingBookings = await EventBooking.find({ event_id });
             const totalBooked = existingBookings.reduce((sum, b) => sum + (b.number_of_tickets || 0), 0);
-            
+
             if (totalBooked + number_of_tickets > maxCapacity) {
                 return NextResponse.json({ error: `Capacity exceeded. Only ${Math.max(0, maxCapacity - totalBooked)} tickets available.` }, { status: 400 });
             }
@@ -43,22 +47,33 @@ export async function POST(request: Request) {
                 amount: total_price,
                 currency: currency || "ETB"
             });
-            
+
             console.log("Payment registered:", payment);
         } catch (paymentError: any) {
-    console.error("Payment registration failed:", paymentError);
-    
-    return NextResponse.json({ 
-        success: false, 
-        message: "Failed to initialize payment gateway.",
-        // If it's an object, stringify it so you can read it in the browser
-        error: typeof paymentError === 'object' ? JSON.stringify(paymentError) : paymentError.message
-    }, { status: 502 });
-}
+            console.error("Payment registration failed:", paymentError);
+
+
+            const updatedEvent = await Service.findOneAndUpdate(
+                { _id: event_id, "availability.quantity": { $gt: 0 } },
+                { $inc: { "availability.quantity": -1 } },
+                { new: true }
+            );
+
+            if (!updatedEvent) {
+
+                throw new Error("Room inventory update failed. Room might be out of stock.");
+            }
+            return NextResponse.json({
+                success: false,
+                message: "Failed to initialize payment gateway.",
+                // If it's an object, stringify it so you can read it in the browser
+                error: typeof paymentError === 'object' ? JSON.stringify(paymentError) : paymentError.message
+            }, { status: 502 });
+        }
 
         // 3. Extract ID safely
         // Ensure you check if payment exists before accessing ._id
-        const payment_id = payment?._id || payment?.id; 
+        const payment_id = payment?._id || payment?.id;
 
         if (!payment_id) {
             console.log("Payment ID missing from gateway response");
@@ -81,9 +96,9 @@ export async function POST(request: Request) {
         }, { status: 201 });
 
     } catch (error: any) {
-        console.error("🔥 Server Terminal Error:", error); 
-        return NextResponse.json({ 
-            success: false, 
+        console.error("🔥 Server Terminal Error:", error);
+        return NextResponse.json({
+            success: false,
             message: error.message || "Internal Server Error"
         }, { status: 500 });
     }
@@ -93,13 +108,13 @@ export async function GET() {
     try {
         const result = await EventBooking.find();
         return NextResponse.json(
-      {
-        message: "Bookings retrieved successfully",
-        data: result
-      },
-      { status: 200 }
-    );
-        
+            {
+                message: "Bookings retrieved successfully",
+                data: result
+            },
+            { status: 200 }
+        );
+
     } catch (error: any) {
         const status = error.status || 500;
 
@@ -109,7 +124,7 @@ export async function GET() {
                 success: false,
                 message: error.message || "Something went wrong",
             },
-            { status: status } 
+            { status: status }
         );
     }
 }

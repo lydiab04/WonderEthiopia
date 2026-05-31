@@ -366,7 +366,7 @@ export default function RoomBookingPage() {
                   <button 
                     type="submit" 
                     disabled={loading || !isFormValid}
-                    className="w-full bg-black text-white py-4 rounded-2xl font-black text-lg uppercase tracking-widest hover:bg-red-600 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+                    className="w-full bg-primary text-white py-4 rounded-2xl font-black text-lg uppercase tracking-widest hover:bg-red-300 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
                   >
                     {loading ? (
                       <span className="flex items-center justify-center gap-2">

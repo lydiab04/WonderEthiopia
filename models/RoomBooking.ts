@@ -33,5 +33,6 @@ const roomBookingSchema=new mongoose.Schema({
     }
 },{timestamps:true});
 
-const RoomBooking=mongoose.model('roomBooking',roomBookingSchema);
+const RoomBooking=mongoose.models.roomBooking||mongoose.model('roomBooking',roomBookingSchema);
+
 export default RoomBooking;
