@@ -31,6 +31,6 @@ const carBookingSchema=new mongoose.Schema({
     
 },{timestamps:true});
 
-const CarBooking=mongoose.model('carBooking',carBookingSchema);
+const CarBooking = mongoose.models.carBooking || mongoose.model('carBooking', carBookingSchema);
 
 export default CarBooking;

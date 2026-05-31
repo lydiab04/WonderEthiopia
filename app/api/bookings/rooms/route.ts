@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { registerPayment } from "../../payments/route";
 import RoomBooking from "@/models/RoomBooking";
+import Service from "@/models/Service";
 
 export async function POST(request: Request) {
     try {
@@ -15,6 +16,11 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "All fields are required",data:body }, { status: 400 });
         }
 
+        const service = await Service.findById(room_id);
+                if (!service || service.availability?.quantity <= 0) {
+                    return NextResponse.json({ error: "This car is currently out of stock/unavailable" }, { status: 400 });
+                }
+
         // 2. Initiate Payment
         let payment;
         try {
@@ -27,6 +33,17 @@ export async function POST(request: Request) {
             console.log("Payment registered:", payment);
         } catch (paymentError: any) {
     console.error("Payment registration failed:", paymentError);
+
+    const updatedRoom = await Service.findOneAndUpdate(
+                { _id: room_id, "availability.quantity": { $gt: 0 } }, 
+                { $inc: { "availability.quantity": -1 } },
+                { new: true } 
+            );
+    
+            if (!updatedRoom) {
+              
+                throw new Error("Room inventory update failed. Room might be out of stock.");
+            }
     
     return NextResponse.json({ 
         success: false, 

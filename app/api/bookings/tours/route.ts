@@ -16,11 +16,16 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "All fields are required",data:body }, { status: 400 });
         }
 
+        
+
         // 1.5 Capacity Check
         const service = await Service.findById(tour_id);
         if (!service) {
             return NextResponse.json({ error: "Tour service not found" }, { status: 404 });
         }
+        if (!service || service?.availability?.quantity <= 0) {
+                    return NextResponse.json({ error: "This car is currently out of stock/unavailable" }, { status: 400 });
+                }
 
         const maxCapacity = service.availability?.quantity || service.metadata?.capacity || service.metadata?.maxOccupancy || service.metadata?.eventCapacity || 0;
         
@@ -46,6 +51,18 @@ export async function POST(request: Request) {
         } catch (paymentError: any) {
     console.error("Payment registration failed:", paymentError);
     
+
+ const updatedTour = await Service.findOneAndUpdate(
+                { _id: tour_id, "availability.quantity": { $gt: 0 } }, 
+                { $inc: { "availability.quantity": -1 } },
+                { new: true } 
+            );
+    
+            if (!updatedTour) {
+              
+                throw new Error("Tour inventory update failed. Tour might be out of stock.");
+            }
+
     return NextResponse.json({ 
         success: false, 
         message: "Failed to initialize payment gateway.",
