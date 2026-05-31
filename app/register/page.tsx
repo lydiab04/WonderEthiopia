@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
-import { signInWithRedirect, getRedirectResult, auth, googleProvider } from "@/lib/firebase";
+import { signInWithPopup, auth, googleProvider } from "@/lib/firebase";
 import { ArrowLeft, User, Mail, Lock, Loader2 } from "lucide-react";
 
 export default function RegisterPage() {
@@ -17,26 +17,6 @@ export default function RegisterPage() {
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    (async () => {
-      const result = await getRedirectResult(auth);
-      if (result?.user) {
-        const idToken = await result.user.getIdToken();
-        const nextAuthResult = await signIn("credentials", {
-          idToken,
-          redirect: false,
-        });
-        if (nextAuthResult?.error) {
-          setError(nextAuthResult.error);
-          setLoading(false);
-        } else {
-          router.push("/dashboard");
-          router.refresh();
-        }
-      }
-    })();
-  }, [router]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -82,10 +62,20 @@ export default function RegisterPage() {
     setError("");
     setLoading(true);
     try {
-      await signInWithRedirect(auth, googleProvider);
-      // Result will be handled in useEffect above
+      const result = await signInWithPopup(auth, googleProvider);
+      if (result?.user) {
+        const idToken = await result.user.getIdToken();
+        const nextAuthResult = await signIn("credentials", { idToken, redirect: false });
+        if (nextAuthResult?.error) {
+          setError(nextAuthResult.error);
+        } else {
+          router.push("/dashboard");
+          router.refresh();
+        }
+      }
     } catch (err: any) {
       setError(err.message || "Google sign in failed");
+    } finally {
       setLoading(false);
     }
   };

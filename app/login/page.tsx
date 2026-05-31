@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { signInWithRedirect, getRedirectResult, auth, googleProvider } from "@/lib/firebase";
+import { signInWithPopup, auth, googleProvider } from "@/lib/firebase";
 import { ArrowLeft, Mail, Lock, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
@@ -14,27 +14,6 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [requestingNew, setRequestingNew] = useState(false);
-
-  // Handle Firebase redirect result
-  useEffect(() => {
-    (async () => {
-      const result = await getRedirectResult(auth);
-      if (result?.user) {
-        const idToken = await result.user.getIdToken();
-        const nextAuthResult = await signIn("credentials", {
-          idToken,
-          redirect: false,
-        });
-        if (nextAuthResult?.error) {
-          setError(nextAuthResult.error);
-          setLoading(false);
-        } else {
-          router.push("/dashboard");
-          router.refresh();
-        }
-      }
-    })();
-  }, [router]);
 
   const handleRequestNewPassword = async () => {
     if (!email) {
@@ -88,10 +67,20 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      await signInWithRedirect(auth, googleProvider);
-      // Result handled in useEffect
+      const result = await signInWithPopup(auth, googleProvider);
+      if (result?.user) {
+        const idToken = await result.user.getIdToken();
+        const nextAuthResult = await signIn("credentials", { idToken, redirect: false });
+        if (nextAuthResult?.error) {
+          setError(nextAuthResult.error);
+        } else {
+          router.push("/dashboard");
+          router.refresh();
+        }
+      }
     } catch (err: any) {
       setError(err.message || "Google sign in failed");
+    } finally {
       setLoading(false);
     }
   };
