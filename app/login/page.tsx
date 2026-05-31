@@ -4,7 +4,7 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { signInWithPopup, auth, googleProvider } from "@/lib/firebase";
+import { signInWithPopup, auth,signInWithRedirect, getRedirectResult, googleProvider } from "@/lib/firebase";
 import { ArrowLeft, Mail, Lock, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
