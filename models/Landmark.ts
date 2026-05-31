@@ -44,10 +44,7 @@ const landMarkSchema=new mongoose.Schema({
     gallery:{
         type:[String]
     },
-    rating: {
-      type: Number,
-      default: 0,
-    },
+   
 
     embedding: [Number],
     

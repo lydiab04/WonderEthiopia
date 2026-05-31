@@ -190,6 +190,8 @@ export default function PortalWrapper({ children }: { children: React.ReactNode 
         return [
           { label: "Review Submissions", href: "/tourism-admin/businesses", icon: <Building2 className="w-5 h-5" />, count: stats.pendingBusinesses },
           { label: "Initial Monitoring", href: "/tourism-admin/reports", icon: <ClipboardList className="w-5 h-5" />, count: stats.pendingReports },
+          {label: "Destination Inventory", href:"/tourism-admin/destination-inventory",icon:<ClipboardList className="w-5 h-5" />},
+          {label: "Landmark Inventory", href:"/tourism-admin/landmark-inventory",icon:<ClipboardList className="w-5 h-5" />}
         ];
       case "business_owner":
         return [
@@ -200,7 +202,7 @@ export default function PortalWrapper({ children }: { children: React.ReactNode 
         return [
           { label: "Browse Services", href: "/discover/businesses", icon: <Globe className="w-5 h-5" />, count: 0 },
           { label: "My Destinations", href: "/discover/destinations", icon: <Compass className="w-5 h-5" />, count: 0 },
-          { label: "My Bookings", href: "/dashboard/bookings", icon: <Calendar className="w-5 h-5" />, count: 0 },
+          { label: "My Bookings", href: "/mybookings", icon: <Calendar className="w-5 h-5" />, count: 0 },
           { label: "Landmark Lens", href: "/landmarks", icon: <Landmark className="w-5 h-5" />, count: 0 }
         ];
     }

@@ -306,6 +306,13 @@ export default function MyBookings() {
     Promise.allSettled([getRoomBookings(), getCarBookings(), getEventBookings(), getTourBookings()]);
   }, []);
 
+  useEffect(()=>{
+    console.log(carBookings)
+    console.log(roomBookings);
+    console.log(eventBookings);
+    console.log(tourBookings)
+  },[carBookings,eventBookings,roomBookings,tourBookings])
+
   return (
     <div className="min-h-screen bg-[#F8F9FA] py-12 px-4 sm:px-6 lg:px-8 relative">
       <div className="max-w-5xl mx-auto">
