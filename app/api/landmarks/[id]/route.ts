@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Landmark from "@/models/Landmark";
-import getImageEmbedding from "../recognize/route";
+import { getImageEmbedding } from "../recognize/route";
 
 // Helper to convert frontend base64 strings or URLs to an ArrayBuffer
 async function getArrayBufferFromItem(item: string): Promise<ArrayBuffer | null> {

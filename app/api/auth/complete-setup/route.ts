@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     const hashed = await bcrypt.hash(newPassword, 12);
     user.password = hashed;
     user.needsPasswordChange = false;
-    user.tempPasswordExpiresAt = null;
+    user.tempPasswordExpiresAt = undefined;
     await user.save();
 
     // Issue JWT token compatible with NextAuth session config (2‑hour expiry)
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
         needsPasswordChange: false,
         image: user.profileImage,
       },
-      secret: process.env.NEXTAUTH_SECRET,
+      secret: process.env.NEXTAUTH_SECRET as string,
       maxAge: 2 * 60 * 60,
     });
 

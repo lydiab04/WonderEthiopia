@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Landmark from "@/models/Landmark";
-import getImageEmbedding from "./recognize/route";
+import { getImageEmbedding } from "./recognize/route";
 
 export async function GET() {
   await dbConnect();

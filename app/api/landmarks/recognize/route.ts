@@ -17,7 +17,7 @@ async function getExtractor() {
   return extractor;
 }
 
-export default async function getImageEmbedding(image: ArrayBuffer): Promise<number[]> {
+async function getImageEmbedding(image: ArrayBuffer): Promise<number[]> {
   const ext = await getExtractor();
   const blob = new Blob([image]);
   const img = await RawImage.fromBlob(blob);
@@ -139,4 +139,4 @@ export async function POST(req: Request) {
   }
 }
 
-export default getImageEmbedding
+export { getImageEmbedding };
