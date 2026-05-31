@@ -17,7 +17,7 @@ export async function POST(request: Request) {
         }
 
         const service = await Service.findById(room_id);
-                if (!service || service.availability?.quantity <= 0) {
+                if (!service || (service.availability?.quantity ?? 0) <= 0) {
                     return NextResponse.json({ error: "This car is currently out of stock/unavailable" }, { status: 400 });
                 }
 

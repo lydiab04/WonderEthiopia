@@ -23,7 +23,7 @@ export async function POST(request: Request) {
         if (!service) {
             return NextResponse.json({ error: "Tour service not found" }, { status: 404 });
         }
-        if (!service || service?.availability?.quantity <= 0) {
+        if (!service || (service?.availability?.quantity ?? 0) <= 0) {
                     return NextResponse.json({ error: "This car is currently out of stock/unavailable" }, { status: 400 });
                 }
 
