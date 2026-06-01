@@ -62,6 +62,21 @@ export default function SettingsPage() {
   }, []);
 
   const handleSave = async () => {
+    if (!profile.name || profile.name.trim() === "") {
+      showToast("Validation Error", "Official Name cannot be left empty.", "error");
+      return;
+    }
+
+    if (!profile.phoneNumber || profile.phoneNumber.trim() === "") {
+      showToast("Validation Error", "Contact Line cannot be left empty.", "error");
+      return;
+    }
+
+   
+    if (profile.phoneNumber.replace(/[^0-9]/g, "").length < 9) {
+      showToast("Validation Error", "Phone number must contain at least 9 digits.", "error");
+      return;
+    }
     setSaving(true);
     try {
       const promises = [
@@ -199,9 +214,16 @@ export default function SettingsPage() {
                       type="text"
                       value={profile.phoneNumber}
                       disabled={!isEditing}
-                      onChange={e => setProfile({ ...profile, phoneNumber: e.target.value })}
+                      onChange={e => {
+                        const sanitizedValue = e.target.value.replace(/[^0-9+]/g, "");
+                        const limitedValue = sanitizedValue.slice(0, 15);
+                        setProfile({ ...profile, phoneNumber: limitedValue });
+                      }}
                       className={`w-full pl-14 pr-8 py-5 bg-foreground/[0.02] border border-foreground/[0.05] rounded-3xl text-sm font-bold outline-none ${!isEditing ? "opacity-50 cursor-not-allowed" : ""}`}
                       placeholder="+251..."
+                      pattern="^\+?[0-9]{9,15}$"
+                      title="Please enter a valid phone number (e.g., +251911234567)"
+
                     />
                   </div>
                 </div>
