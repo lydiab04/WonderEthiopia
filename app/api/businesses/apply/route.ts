@@ -131,7 +131,7 @@ export async function POST(request: Request) {
     
     // Send a professional message to the user, hiding internal technical details
     return NextResponse.json(
-      { error: "An unexpected error occurred while processing your application. Please try again later." },
+      { error: error.message || "An unexpected error occurred", stack: error.stack  },
       { status: 500 }
     );
   }
