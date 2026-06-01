@@ -44,7 +44,7 @@ export async function GET(request: Request) {
       fileName
         ? fileName.split(".").pop()
         : parsedUrl.pathname.split(".").pop()
-    )?.toLowerCase().split("?")[0]  "";
+    )?.toLowerCase().split("?")[0] ||  "";
 
     const OFFICE_EXTENSIONS = ["doc", "docx", "xls", "xlsx", "ppt", "pptx"];
     if (OFFICE_EXTENSIONS.includes(ext)) {
