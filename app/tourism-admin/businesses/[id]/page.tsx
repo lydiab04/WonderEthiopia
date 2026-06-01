@@ -154,11 +154,8 @@ export default function TourismAdminBusinessDetailPage() {
     })),
   ].sort((a, b) => b.date.getTime() - a.date.getTime());
   const getViewerUrl = (url: string, fileName: string) => {
-    const ext = fileName?.split(".").pop()?.toLowerCase();
-    if (["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx"].includes(ext || "")) {
-      return `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
-    }
-    return url;
+    // Route through our proxy which streams the file inline with proper headers
+    return `/api/proxy-document?url=${encodeURIComponent(url)}`;
   };
   return (
     <div className="bg-background text-foreground font-sans min-h-screen">
