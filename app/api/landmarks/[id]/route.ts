@@ -27,24 +27,25 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  await dbConnect();
   try {
     const { id } = await params;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return NextResponse.json(
-        { error: `Malformed ID format: '${id}' is not a valid 24-character hex string.` },
-        { status: 400 }
-      );
+
+    // ❌ was: if (!resolvedParams  !resolvedParams.id)  — missing ||
+    if (!id) {
+      return NextResponse.json({ error: "Missing or invalid ID parameter" }, { status: 400 });
     }
-    await dbConnect();
+
     const landmark = await Landmark.findById(id);
     if (!landmark) {
       return NextResponse.json({ error: "Landmark not found" }, { status: 404 });
     }
     return NextResponse.json({ data: landmark });
   } catch (error: any) {
-    console.error("GET Landmark Error:", error);
+    console.error("GET Route Error:", error);
+    // ❌ was: error.message  "Server error" — missing ||
     return NextResponse.json(
-      { error: error.message || "Internal server error", details: { name: error.name, code: error.code } },
+      { error: error.message || "Server error" },
       { status: 500 }
     );
   }
