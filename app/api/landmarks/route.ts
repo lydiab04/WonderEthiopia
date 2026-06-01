@@ -8,6 +8,7 @@ export async function GET() {
   try {
     await dbConnect();
     const landmarks = await Landmark.find(); // ✅ FIXED
+    console.log(`GET /api/landmarks – returned ${landmarks.length} documents`);
 
     return NextResponse.json(landmarks);
   } catch (error: any) {
