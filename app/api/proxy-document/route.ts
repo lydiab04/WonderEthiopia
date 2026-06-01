@@ -39,7 +39,7 @@ export async function GET(request: Request) {
     }
 
     // Detect MIME type from fileName or URL extension
-    const sourceString = fileName  url;
+    const sourceString = fileName ?? url;
     const ext = sourceString.split("?")[0].split(".").pop()?.toLowerCase() ||  "";
     const contentType = MIME_MAP[ext] || "application/octet-stream";
 
