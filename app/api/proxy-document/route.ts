@@ -26,6 +26,7 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const url = searchParams.get("url");
+    const fileName = searchParams.get("fileName");
 
     if (!url) {
       return NextResponse.json({ error: "Missing url parameter" }, { status: 400 });
@@ -37,8 +38,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "URL not allowed" }, { status: 403 });
     }
 
-    // Detect MIME type from URL extension
-    const ext = url.split("?")[0].split(".").pop()?.toLowerCase() || "";
+    // Detect MIME type from fileName or URL extension
+    const sourceString = fileName  url;
+    const ext = sourceString.split("?")[0].split(".").pop()?.toLowerCase()  "";
     const contentType = MIME_MAP[ext] || "application/octet-stream";
 
     const fileResponse = await fetch(url);
