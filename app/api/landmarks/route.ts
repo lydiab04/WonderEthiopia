@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Landmark from "@/models/Landmark";
 import { formatError } from "@/lib/apiError";
+import { getImageEmbedding } from "@/lib/embedding";
 // getImageEmbedding will be imported lazily in POST handler
 
 export async function GET() {
@@ -21,7 +22,7 @@ export async function POST(request: Request) {
   try {
     await dbConnect();
     // 1. Read directly as JSON matching your frontend layout setup
-    const { getImageEmbedding } = await import("./recognize/route");
+    // const { getImageEmbedding } = await import("./recognize/route");
     const body = await request.json();
     const {
       name,
