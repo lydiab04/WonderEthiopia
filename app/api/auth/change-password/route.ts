@@ -105,6 +105,18 @@ export async function POST(request: Request) {
     });
   } catch (error: any) {
     console.error("Password Change Error:", error);
-    return NextResponse.json({ error: "Internal server error during credential synchronization." }, { status: 500 });
+    // Detailed professional error response for debugging
+    return NextResponse.json(
+      {
+        error: "An unexpected error occurred while processing your password change. Please try again later.",
+        details: {
+          message: error?.message,
+          name: error?.name,
+          stack: error?.stack
+        },
+        hint: "Check Vercel logs and ensure environment variables (e.g., DB connection, JWT secret) are correctly set."
+      },
+      { status: 500 }
+    );
   }
 }

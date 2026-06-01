@@ -81,7 +81,7 @@ export async function POST(request: Request) {
       if (key.startsWith("file_") && value instanceof File) {
         const file = value;
         const buffer = Buffer.from(await file.arrayBuffer());
-        
+
         const publicUrl = await uploadToCloudinary(buffer, file.name);
 
         uploadedFilePaths.push(publicUrl);
@@ -145,11 +145,15 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error("Application error:", error);
 
-    // Temporarily expose error details for debugging - REMOVE AFTER FIX
+    // Provide a detailed but professional error response for debugging
     return NextResponse.json(
       {
-        error: error?.message || "Unknown error",
-        name: error?.name,
+        error: "An unexpected error occurred while processing your application. Please try again later.",
+        details: {
+          message: error?.message,
+          name: error?.name,
+          stack: error?.stack
+        },
         hint: "Check Vercel logs and ensure CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET are set in Vercel environment variables."
       },
       { status: 500 }
