@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { v2 as cloudinary } from "cloudinary";
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 const MIME_MAP: Record<string, string> = {
   pdf: "application/pdf",
@@ -16,6 +23,8 @@ const MIME_MAP: Record<string, string> = {
   ppt: "application/vnd.ms-powerpoint",
   pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 };
+
+const OFFICE_EXTENSIONS = ["doc", "docx", "xls", "xlsx", "ppt", "pptx"];
 
 export async function GET(request: Request) {
   try {
@@ -38,39 +47,66 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "URL not allowed" }, { status: 403 });
     }
 
-    // Detect MIME type from fileName or URL extension
-
+    // Detect extension from fileName or URL
     const ext = (
       fileName
         ? fileName.split(".").pop()
         : parsedUrl.pathname.split(".").pop()
-    )?.toLowerCase().split("?")[0] ||  "";
+    )?.toLowerCase().split("?")[0] ?? "";
 
-    const OFFICE_EXTENSIONS = ["doc", "docx", "xls", "xlsx", "ppt", "pptx"];
+    // Office files → redirect to Google Docs Viewer
     if (OFFICE_EXTENSIONS.includes(ext)) {
       const googleViewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
       return NextResponse.redirect(googleViewerUrl);
     }
 
-    const contentType = MIME_MAP[ext] ||  "application/octet-stream";
-    const fileResponse = await fetch(url, {
-  redirect: "follow", // ✅ follow Cloudinary redirects
-  headers: {
-    "User-Agent": "Mozilla/5.0",
-  },
-});
-    if (!fileResponse.ok) {
-      return NextResponse.json({ error: "Failed to fetch document" }, { status: fileResponse.status });
+    // Extract public_id and resource_type from the Cloudinary URL
+    // URL format: https://res.cloudinary.com/{cloud}/{resource_type}/upload/v{version}/{folder}/{public_id}.{ext}
+    const pathParts = parsedUrl.pathname.split("/");
+    // pathParts: ['', '{cloud}', '{resource_type}', 'upload', 'v{version}', ...rest]
+    const resourceType = pathParts[2] as "image" | "raw" | "video"; // 'raw' for docs
+    const uploadIndex = pathParts.indexOf("upload");
+
+    if (uploadIndex === -1) {
+      return NextResponse.json({ error: "Invalid Cloudinary URL" }, { status: 400 });
     }
 
+    // Everything after 'upload' (skip version segment starting with 'v')
+    const afterUpload = pathParts.slice(uploadIndex + 1);
+    const startIndex = afterUpload[0]?.match(/^v\d+$/) ? 1 : 0;
+    const publicIdWithExt = afterUpload.slice(startIndex).join("/");
+    const publicId = publicIdWithExt.replace(/\.[^/.]+$/, ""); // strip extension
+
+    // Generate a short-lived signed URL (valid 60s) so Cloudinary serves it
+    const signedUrl = cloudinary.url(publicId, {
+      resource_type: resourceType,
+      type: "upload",
+      sign_url: true,
+      expires_at: Math.floor(Date.now() / 1000) + 60,
+      secure: true,
+    });
+
+    // Fetch using the signed URL
+    const fileResponse = await fetch(signedUrl, {
+      redirect: "follow",
+      headers: { "User-Agent": "Mozilla/5.0" },
+    });
+
+    if (!fileResponse.ok) {
+      console.error("Cloudinary fetch failed:", fileResponse.status, await fileResponse.text().catch(() => ""));
+      return NextResponse.json(
+        { error: `Failed to fetch document (${fileResponse.status})` },
+        { status: fileResponse.status }
+      );
+    }
+
+    const contentType = MIME_MAP[ext] ?? "application/octet-stream";
     const buffer = await fileResponse.arrayBuffer();
 
     return new NextResponse(buffer, {
       status: 200,
       headers: {
-        // Force correct MIME type — overrides Cloudinary's octet-stream
         "Content-Type": contentType,
-        // Force the browser to display inline, not download
         "Content-Disposition": "inline",
         "Cache-Control": "private, max-age=3600",
       },
