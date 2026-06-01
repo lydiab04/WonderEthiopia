@@ -3,6 +3,7 @@
 import { ChevronRight, Edit, MapPin, Plus, Star, Trash, Image as ImageIcon, X, Upload } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { NextResponse } from "next/server";
 
 interface Destination {
   _id: string;
@@ -160,9 +161,14 @@ const handleTriggerDelete = (id: string) => {
         const res = await fetch(`/api/destinations`);
         const data = await res.json();
         setDestinations(Array.isArray(data) ? data : []);
-      } catch (error) {
-        console.error("Failed to fetch destinations:", error);
-      } finally {
+      } } catch (error: any) {
+  console.error("Error fetching destinations:", error);
+  return NextResponse.json({ 
+    error: "Failed to fetch destinations",
+    details: error.message,
+    name: error.name
+  }, { status: 500 });
+} finally {
         setLoading(false);
       }
     }
