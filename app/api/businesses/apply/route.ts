@@ -145,17 +145,13 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error("Application error:", error);
 
-    // Provide a professional, specific message if storage is misconfigured
-    if (error?.message && error.message.includes("Cloudinary")) {
-      return NextResponse.json(
-        { error: "Our file storage system is currently unavailable. Please try submitting your application later." },
-        { status: 503 }
-      );
-    }
-
-    // Send a professional message to the user for other unexpected errors
+    // Temporarily expose error details for debugging - REMOVE AFTER FIX
     return NextResponse.json(
-      { error: "An unexpected error occurred while processing your application. Please try again later." },
+      {
+        error: error?.message || "Unknown error",
+        name: error?.name,
+        hint: "Check Vercel logs and ensure CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET are set in Vercel environment variables."
+      },
       { status: 500 }
     );
   }
