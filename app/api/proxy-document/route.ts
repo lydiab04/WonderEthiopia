@@ -53,7 +53,12 @@ export async function GET(request: Request) {
     }
 
     const contentType = MIME_MAP[ext] ||  "application/octet-stream";
-    const fileResponse = await fetch(url);
+    const fileResponse = await fetch(url, {
+  redirect: "follow", // ✅ follow Cloudinary redirects
+  headers: {
+    "User-Agent": "Mozilla/5.0",
+  },
+});
     if (!fileResponse.ok) {
       return NextResponse.json({ error: "Failed to fetch document" }, { status: fileResponse.status });
     }
