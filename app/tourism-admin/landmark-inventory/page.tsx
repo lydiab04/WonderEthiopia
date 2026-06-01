@@ -24,14 +24,9 @@ interface Landmark {
   };
 }
 
-const PAGE_SIZE = 10;
-
 export default function LandmarkInventory() {
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [landmarks, setLandmarks] = useState<Landmark[]>([]);
-  const [total, setTotal] = useState(0);
-  const [skip, setSkip] = useState(0);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
@@ -122,44 +117,33 @@ export default function LandmarkInventory() {
     setIsModalOpen(true);
   };
 
-  const fetchPage = async (pageSkip: number, isLoadMore = false) => {
-    const controller = new AbortController();
-    try {
-      if (isLoadMore) setLoadingMore(true);
-      else setLoading(true);
-
-      const res = await fetch(`/api/landmarks?limit=${PAGE_SIZE}&skip=${pageSkip}`, {
-        signal: controller.signal,
-      });
-
-      if (!res.ok) {
-        console.error("Landmarks API error:", res.status);
-        return;
-      }
-
-      const data = await res.json();
-      const fetched: Landmark[] = Array.isArray(data.landmarks) ? data.landmarks : [];
-
-      setTotal(data.total ?? 0);
-      setSkip(pageSkip + fetched.length);
-
-      if (isLoadMore) {
-        setLandmarks((prev) => [...prev, ...fetched]);
-      } else {
-        setLandmarks(fetched);
-      }
-    } catch (error: any) {
-      if (error.name !== "AbortError") {
-        console.error("Failed to fetch landmarks:", error);
-      }
-    } finally {
-      if (isLoadMore) setLoadingMore(false);
-      else setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchPage(0);
+    const controller = new AbortController();
+
+    async function fetchLandmarks() {
+      try {
+        setLoading(true);
+        const res = await fetch(`/api/landmarks`, { signal: controller.signal });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          console.error("Landmarks API error:", err);
+          setLandmarks([]);
+          return;
+        }
+        const data = await res.json();
+        setLandmarks(Array.isArray(data) ? data : []);
+      } catch (error: any) {
+        if (error.name !== "AbortError") {
+          console.error("Failed to fetch landmarks:", error);
+        }
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchLandmarks();
+
+    return () => controller.abort();
   }, []);
 
   useEffect(() => {
@@ -378,26 +362,6 @@ export default function LandmarkInventory() {
               </div>
             ))}
           </div>
-
-          {/* Load More */}
-          {landmarks.length < total && (
-            <div className="flex justify-center mt-8">
-              <button
-                onClick={() => fetchPage(skip, true)}
-                disabled={loadingMore}
-                className="px-6 py-2.5 rounded-full bg-primary text-background text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-2"
-              >
-                {loadingMore ? (
-                  <>
-                    <span className="w-4 h-4 border-2 border-background/40 border-t-background rounded-full animate-spin" />
-                    Loading…
-                  </>
-                ) : (
-                  `Load More (${total - landmarks.length} remaining)`
-                )}
-              </button>
-            </div>
-          )}
         )}
       </div>
 
