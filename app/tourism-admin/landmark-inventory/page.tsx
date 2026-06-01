@@ -27,12 +27,12 @@ interface Landmark {
 export default function LandmarkInventory() {
   const [loading, setLoading] = useState(true);
   const [landmarks, setLandmarks] = useState<Landmark[]>([]);
-
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const [uploadedImages, setUploadedImages] = useState<(string | File)[]>([]);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [landmarkToDelete, setLandmarkToDelete] = useState<string | null>(null);
@@ -56,7 +56,7 @@ export default function LandmarkInventory() {
     setLandmarkToDelete(id);
     setIsDeleteModalOpen(true);
   };
-
+  
   const resetFormState = () => {
     setIsModalOpen(false);
     setModalMode("create");
@@ -118,32 +118,24 @@ export default function LandmarkInventory() {
   };
 
   useEffect(() => {
-    const controller = new AbortController();
-
     async function fetchLandmarks() {
       try {
         setLoading(true);
-        const res = await fetch(`/api/landmarks`, { signal: controller.signal });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          console.error("Landmarks API error:", err);
-          setLandmarks([]);
-          return;
-        }
+        const res = await fetch(`/api/landmarks`);
         const data = await res.json();
         setLandmarks(Array.isArray(data) ? data : []);
-      } catch (error: any) {
-        if (error.name !== "AbortError") {
-          console.error("Failed to fetch landmarks:", error);
-        }
+      } catch (error) {
+        console.error("Failed to fetch landmarks:", error);
       } finally {
         setLoading(false);
       }
     }
 
-    fetchLandmarks();
+    const timer = setTimeout(() => {
+      fetchLandmarks();
+    }, 500);
 
-    return () => controller.abort();
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -168,19 +160,10 @@ export default function LandmarkInventory() {
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === "string") {
-          setUploadedImages((prev) => [...prev, reader.result as string]);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
-  };
+  const files = e.target.files;
+  if (!files) return;
+  setUploadedImages((prev) => [...prev, ...Array.from(files)]);
+};
 
   const removeUploadedImage = (indexToRemove: number) => {
     setUploadedImages((prev) => prev.filter((_, idx) => idx !== indexToRemove));
@@ -188,14 +171,14 @@ export default function LandmarkInventory() {
 
   const handleConfirmDelete = async () => {
     if (!landmarkToDelete) return;
-
+    
     try {
       setIsDeleting(true);
       const res = await fetch(`/api/landmarks/${landmarkToDelete}`, { method: "DELETE" });
       if (res.ok) {
         setLandmarks((prev) => prev.filter((item) => item._id !== landmarkToDelete));
         setIsDeleteModalOpen(false);
-
+       
       }
     } catch (error) {
       console.error("Error deleting landmark:", error);
@@ -206,55 +189,85 @@ export default function LandmarkInventory() {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      setIsSubmitting(true);
+  e.preventDefault();
+  try {
+    setIsSubmitting(true);
 
-      const payload = {
-        name: formData.name,
-        description: formData.description,
-        region: formData.region,
-        city: formData.city,
-        gallery: uploadedImages,
-        date_of_establishment: formData.date_of_establishment,
-        significance: formData.significance,
-        unesco_status: formData.unesco_status,
-        coordinates: {
-          latitude: parseFloat(formData.latitude) || 0,
-          longitude: parseFloat(formData.longitude) || 0
-        },
-        visitor_info: {
-          fee: formData.fee,
-          opening_hours: formData.opening_hours
-        }
-      };
+    const finalCloudUrls: string[] = [];
 
-      const url = modalMode === "edit" ? `/api/landmarks/${editingId}` : "/api/landmarks";
-      const method = modalMode === "edit" ? "PUT" : "POST";
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 
-      const res = await fetch(url, {
-        method: method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
-        const savedLandmark = await res.json();
-
-        if (modalMode === "edit") {
-          setLandmarks((prev) => prev.map((item) => (item._id === editingId ? savedLandmark : item)));
-        } else {
-          setLandmarks((prev) => [savedLandmark, ...prev]);
-        }
-
-        resetFormState();
-      }
-    } catch (error) {
-      console.error("Error submitting landmark data entry:", error);
-    } finally {
-      setIsSubmitting(false);
+    if (!cloudName || !uploadPreset) {
+      throw new Error("Missing Cloudinary environment variables");
     }
-  };
+
+    for (const item of uploadedImages) {
+      if (typeof item === "string") {
+        finalCloudUrls.push(item); // existing URL from edit mode
+      } else {
+        const data = new FormData();
+        data.append("file", item);
+        data.append("upload_preset", uploadPreset);
+
+        const cloudRes = await fetch(
+          `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+          { method: "POST", body: data }
+        );
+
+        if (!cloudRes.ok) {
+          const errBody = await cloudRes.json().catch(() => ({}));
+          throw new Error(`Cloudinary upload failed: ${errBody?.error?.message ?? cloudRes.status}`);
+        }
+
+        const cloudData = await cloudRes.json();
+        finalCloudUrls.push(cloudData.secure_url);
+      }
+    }
+
+    const payload = {
+      name: formData.name,
+      description: formData.description,
+      region: formData.region,
+      city: formData.city,
+      gallery: finalCloudUrls, // clean URL strings only
+      date_of_establishment: formData.date_of_establishment,
+      significance: formData.significance,
+      unesco_status: formData.unesco_status,
+      coordinates: {
+        latitude: parseFloat(formData.latitude) || 0,
+        longitude: parseFloat(formData.longitude) || 0,
+      },
+      visitor_info: {
+        fee: formData.fee,
+        opening_hours: formData.opening_hours,
+      },
+    };
+
+    const url = modalMode === "edit" ? `/api/landmarks/${editingId}` : "/api/landmarks";
+    const method = modalMode === "edit" ? "PUT" : "POST";
+
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (res.ok) {
+      const savedLandmark = await res.json();
+      if (modalMode === "edit") {
+        setLandmarks((prev) => prev.map((item) => (item._id === editingId ? savedLandmark : item)));
+      } else {
+        setLandmarks((prev) => [savedLandmark, ...prev]);
+      }
+      resetFormState();
+    }
+  } catch (error) {
+    console.error("Error submitting landmark data entry:", error);
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   return (
     <div className="max-w-7xl mx-auto p-6 md:p-10 space-y-8">
@@ -266,7 +279,7 @@ export default function LandmarkInventory() {
             Manage your historical collections, heritage inventory and regional listings
           </p>
         </div>
-        <button
+        <button 
           onClick={handleOpenCreateModal}
           className="inline-flex items-center gap-2 bg-primary text-background hover:bg-foreground/90 transition-all px-5 py-2.5 rounded-2xl text-sm font-semibold shadow-lg active:scale-95"
         >
@@ -310,7 +323,7 @@ export default function LandmarkInventory() {
                         <ImageIcon className="w-12 h-12" />
                       </div>
                     )}
-
+                    
                     {landmark.unesco_status && landmark.unesco_status !== "None" && (
                       <div className="absolute top-4 left-4 bg-amber-500 text-black backdrop-blur-md px-3 py-1 rounded-xl text-[10px] font-bold uppercase tracking-wider shadow-sm flex items-center gap-1">
                         <Award className="w-3 h-3" />
@@ -320,14 +333,14 @@ export default function LandmarkInventory() {
 
                     {/* Edit and Delete Buttons Overlay Block */}
                     <div className="absolute top-4 right-4 flex items-center gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                      <button
+                      <button 
                         onClick={() => handleOpenEditModal(landmark)}
                         title="Edit Landmark"
                         className="w-9 h-9 rounded-full bg-background/90 backdrop-blur-md text-foreground hover:bg-background flex items-center justify-center shadow-md border border-foreground/5 active:scale-95 transition-all"
                       >
                         <Edit className="w-4 h-4" />
                       </button>
-                      <button
+                      <button 
                         onClick={() => handleTriggerDelete(landmark._id)}
                         title="Delete Landmark"
                         className="w-9 h-9 rounded-full bg-background/90 backdrop-blur-md text-red-500 hover:bg-red-600 hover:text-white flex items-center justify-center shadow-md border border-foreground/5 active:scale-95 transition-all"
@@ -369,7 +382,7 @@ export default function LandmarkInventory() {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-md flex items-start justify-center p-4 md:p-10">
           <div className="absolute inset-0" onClick={resetFormState} />
-
+          
           <div className="relative bg-background w-full max-w-2xl rounded-[32px] shadow-2xl border border-foreground/5 p-6 md:p-8 z-10 my-auto transform transition-all animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between border-b border-foreground/5 pb-4 mb-6">
               <div>
@@ -398,14 +411,17 @@ export default function LandmarkInventory() {
 
                   {uploadedImages.length > 0 && (
                     <div className="grid grid-cols-3 gap-3 p-3 bg-foreground/[0.02] border border-foreground/5 rounded-2xl">
-                      {uploadedImages.map((base64Str, idx) => (
-                        <div key={idx} className="relative aspect-video rounded-xl overflow-hidden border border-foreground/5">
-                          <img src={base64Str} className="w-full h-full object-cover" alt="Gallery Preview" />
-                          <button type="button" onClick={() => removeUploadedImage(idx)} className="absolute top-1.5 right-1.5 p-1 bg-black/60 hover:bg-red-500 rounded-full text-white">
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))}
+                     {uploadedImages.map((imgItem, idx) => {
+  const sourceUrl = typeof imgItem === "string" ? imgItem : URL.createObjectURL(imgItem);
+  return (
+    <div key={idx} className="relative aspect-video rounded-xl overflow-hidden border border-foreground/5">
+      <img src={sourceUrl} className="w-full h-full object-cover" alt="Gallery Preview" />
+      <button type="button" onClick={() => removeUploadedImage(idx)} className="absolute top-1.5 right-1.5 p-1 bg-black/60 hover:bg-red-500 rounded-full text-white">
+        <X className="w-3 h-3" />
+      </button>
+    </div>
+  );
+})}
                     </div>
                   )}
                 </div>
@@ -458,11 +474,11 @@ export default function LandmarkInventory() {
               {/* Visitor Configuration Sub-objects */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground/70 flex items-center gap-1"><DollarSign className="w-3 h-3" /> Entry Ticket Fee</label>
+                  <label className="text-xs font-semibold text-foreground/70 flex items-center gap-1"><DollarSign className="w-3 h-3"/> Entry Ticket Fee</label>
                   <input type="text" name="fee" value={formData.fee} onChange={handleInputChange} placeholder="e.g., 200 ETB / Free" className="w-full px-4 py-3 text-sm rounded-xl bg-foreground/[0.02] border border-foreground/10 text-foreground focus:outline-none focus:border-primary" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground/70 flex items-center gap-1"><Clock className="w-3 h-3" /> Opening Hours</label>
+                  <label className="text-xs font-semibold text-foreground/70 flex items-center gap-1"><Clock className="w-3 h-3"/> Opening Hours</label>
                   <input type="text" name="opening_hours" value={formData.opening_hours} onChange={handleInputChange} placeholder="e.g., 8:00 AM - 6:00 PM" className="w-full px-4 py-3 text-sm rounded-xl bg-foreground/[0.02] border border-foreground/10 text-foreground focus:outline-none focus:border-primary" />
                 </div>
               </div>
@@ -494,30 +510,30 @@ export default function LandmarkInventory() {
       {isDeleteModalOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-md flex items-center justify-center p-4">
           <div className="absolute inset-0" onClick={() => { if (!isDeleting) setIsDeleteModalOpen(false); }} />
-
+          
           <div className="relative bg-background w-full max-w-md rounded-[28px] shadow-2xl border border-foreground/5 p-6 z-10 transform transition-all animate-in fade-in zoom-in-95 duration-200 text-center">
             <div className="w-12 h-12 rounded-full bg-primary/10 text-red-500 flex items-center justify-center mx-auto mb-4">
               <Trash className="w-5 h-5" />
             </div>
-
+            
             <h3 className="text-lg font-bold tracking-tight text-foreground">Delete Landmark?</h3>
             <p className="text-sm text-foreground/50 mt-2 px-2">
               Are you absolutely sure you want to remove this historical location from your inventory? This action cannot be undone.
             </p>
 
             <div className="flex items-center justify-center gap-3 mt-6 pt-4 border-t border-foreground/5">
-              <button
-                type="button"
+              <button 
+                type="button" 
                 disabled={isDeleting}
-                onClick={() => { setIsDeleteModalOpen(false); setLandmarkToDelete(null); }}
+                onClick={() => { setIsDeleteModalOpen(false); setLandmarkToDelete(null); }} 
                 className="px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-foreground/5 text-foreground/70 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
-              <button
+              <button 
                 type="button"
                 disabled={isDeleting}
-                onClick={handleConfirmDelete}
+                onClick={handleConfirmDelete} 
                 className="px-5 py-2.5 bg-primary text-white hover:bg-red-400 font-semibold text-sm rounded-xl transition-all active:scale-95 disabled:opacity-50 shadow-md shadow-red-600/10"
               >
                 {isDeleting ? "Deleting..." : "Delete Listing"}
