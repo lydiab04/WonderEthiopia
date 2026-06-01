@@ -3,7 +3,6 @@
 import { ChevronRight, Edit, MapPin, Plus, Star, Trash, Image as ImageIcon, X, Upload } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { NextResponse } from "next/server";
 
 interface Destination {
   _id: string;
@@ -84,17 +83,18 @@ export default function DestinationInventory() {
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  
+  // Track existing links or newly selected local files side by side
+  const [uploadedImages, setUploadedImages] = useState<(string | File)[]>([]);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-const [destinationToDelete, setDestinationToDelete] = useState<string | null>(null);
-const [isDeleting, setIsDeleting] = useState(false);
+  const [destinationToDelete, setDestinationToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-
-const handleTriggerDelete = (id: string) => {
-  setDestinationToDelete(id);
-  setIsDeleteModalOpen(true);
-};
+  const handleTriggerDelete = (id: string) => {
+    setDestinationToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
   
   const [formData, setFormData] = useState({
     name: "",
@@ -161,14 +161,9 @@ const handleTriggerDelete = (id: string) => {
         const res = await fetch(`/api/destinations`);
         const data = await res.json();
         setDestinations(Array.isArray(data) ? data : []);
-      }  catch (error: any) {
-  console.error("Error fetching destinations:", error);
-  return NextResponse.json({ 
-    error: "Failed to fetch destinations",
-    details: error.message,
-    name: error.name
-  }, { status: 500 });
-} finally {
+      } catch (error) {
+        console.error("Failed to fetch destinations:", error);
+      } finally {
         setLoading(false);
       }
     }
@@ -201,19 +196,13 @@ const handleTriggerDelete = (id: string) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  // UPDATED: Simply drop raw File assets directly into state (No more Base64 conversion overhead)
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
 
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === "string") {
-          setUploadedImages((prev) => [...prev, reader.result as string]);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
+    const newFiles = Array.from(files);
+    setUploadedImages((prev) => [...prev, ...newFiles]);
   };
 
   const removeUploadedImage = (indexToRemove: number) => {
@@ -221,28 +210,56 @@ const handleTriggerDelete = (id: string) => {
   };
 
   const handleConfirmDelete = async () => {
-  if (!destinationToDelete) return;
-  
-  try {
-    setIsDeleting(true);
-    const res = await fetch(`/api/destinations/${destinationToDelete}`, { method: "DELETE" });
-    if (res.ok) {
-      setDestinations((prev) => prev.filter((dest) => dest._id !== destinationToDelete));
-      setIsDeleteModalOpen(false);
-      setDestinationToDelete(null);
+    if (!destinationToDelete) return;
+    
+    try {
+      setIsDeleting(true);
+      const res = await fetch(`/api/destinations/${destinationToDelete}`, { method: "DELETE" });
+      if (res.ok) {
+        setDestinations((prev) => prev.filter((dest) => dest._id !== destinationToDelete));
+        setIsDeleteModalOpen(false);
+        setDestinationToDelete(null);
+      }
+    } catch (error) {
+      console.error("Error deleting destination:", error);
+    } finally {
+      setIsDeleting(false);
     }
-  } catch (error) {
-    console.error("Error deleting destination:", error);
-  } finally {
-    setIsDeleting(false);
-  }
-};
+  };
 
-console.log(destinations)
+  // UPDATED: Process raw images directly to Cloudinary prior to saving the MongoDB text structure
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       setIsSubmitting(true);
+
+      const finalCloudUrls: string[] = [];
+      
+      // Pulling direct environment configs injected inside Next.js
+      const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "your_cloud_name";
+      const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "your_preset";
+
+      for (const item of uploadedImages) {
+        if (typeof item === "string") {
+          // If it's already a string, it's an existing cloud image from an edit cycle
+          finalCloudUrls.push(item);
+        } else {
+          // If it's a raw File object, stream it out directly onto Cloudinary storage pools
+          const data = new FormData();
+          data.append("file", item);
+          data.append("upload_preset", uploadPreset);
+
+          const cloudRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+            method: "POST",
+            body: data
+          });
+
+          if (!cloudRes.ok) throw new Error("Cloudinary file transmission failure");
+
+          const cloudData = await cloudRes.json();
+          finalCloudUrls.push(cloudData.secure_url);
+        }
+      }
 
       const payload = {
         name: formData.name,
@@ -250,7 +267,7 @@ console.log(destinations)
         region: formData.region,
         city: formData.city,
         category: formData.category, 
-        images: uploadedImages,
+        images: finalCloudUrls, // Pass clean, lightweight strings only
         coordinates: {
           latitude: parseFloat(formData.latitude) || 0,
           longitude: parseFloat(formData.longitude) || 0
@@ -290,9 +307,9 @@ console.log(destinations)
       <div className="flex items-center justify-between border-b border-foreground/5 pb-5">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Destinations</h1>
-         <p className="text-sm font-semibold text-primary mt-1">
-  Manage your collection inventory and listings
-</p>
+          <p className="text-sm font-semibold text-primary mt-1">
+            Manage your collection inventory and listings
+          </p>
         </div>
         <button 
           onClick={handleOpenCreateModal}
@@ -331,8 +348,8 @@ console.log(destinations)
                 <div>
                   {/* Image Frame Containing Actions */}
                   <div className="relative h-72 rounded-[32px] overflow-hidden mb-6 bg-foreground/5">
-                    {dest.images && dest.images[1] ? (
-                      <img src={dest.images[1]} alt={dest.name} className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500" />
+                    {dest.images && dest.images[0] ? (
+                      <img src={dest.images[0]} alt={dest.name} className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-primary/30"><ImageIcon className="w-12 h-12" /></div>
                     )}
@@ -343,7 +360,7 @@ console.log(destinations)
                       </div>
                     )}
 
-                    {/* RESTORED: Edit and Delete Buttons Overlay Block */}
+                    {/* Edit and Delete Buttons Overlay Block */}
                     <div className="absolute top-4 right-4 flex items-center gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                       <button 
                         onClick={() => handleOpenEditModal(dest)}
@@ -419,15 +436,18 @@ console.log(destinations)
                     <input type="file" accept="image/*" multiple onChange={handleFileChange} className="hidden" />
                   </label>
 
-                  {/* Upload Image Previews */}
+                  {/* Upload Image Previews (Correctly generates local blob object URLs for local File views) */}
                   {uploadedImages.length > 0 && (
                     <div className="grid grid-cols-3 gap-3 p-3 bg-foreground/[0.02] border border-foreground/5 rounded-2xl">
-                      {uploadedImages.map((base64Str, idx) => (
-                        <div key={idx} className="relative aspect-video rounded-xl overflow-hidden border border-foreground/5">
-                          <img src={base64Str} className="w-full h-full object-cover" alt="Upload Preview" />
-                          <button type="button" onClick={() => removeUploadedImage(idx)} className="absolute top-1.5 right-1.5 p-1 bg-black/60 hover:bg-destructive rounded-full text-white"><X className="w-3 h-3" /></button>
-                        </div>
-                      ))}
+                      {uploadedImages.map((imgItem, idx) => {
+                        const sourceUrl = typeof imgItem === "string" ? imgItem : URL.createObjectURL(imgItem);
+                        return (
+                          <div key={idx} className="relative aspect-video rounded-xl overflow-hidden border border-foreground/5">
+                            <img src={sourceUrl} className="w-full h-full object-cover" alt="Upload Preview" />
+                            <button type="button" onClick={() => removeUploadedImage(idx)} className="absolute top-1.5 right-1.5 p-1 bg-black/60 hover:bg-destructive rounded-full text-white"><X className="w-3 h-3" /></button>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -439,7 +459,6 @@ console.log(destinations)
                   <input required type="text" name="name" value={formData.name} onChange={handleInputChange} placeholder="e.g., Lalibela" className="w-full px-4 py-3 text-sm rounded-xl bg-foreground/[0.02] border border-foreground/10 text-foreground" />
                 </div>
                 
-                {/* REMAPPED VALUE SEGMENT SELECT CONTAINER */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-foreground/70">Category Segment *</label>
                   <select
@@ -502,43 +521,43 @@ console.log(destinations)
           </div>
         </div>
       )}
-    
-
-{isDeleteModalOpen && (
-  <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-md flex items-center justify-center p-4">
-    <div className="absolute inset-0" onClick={() => { if (!isDeleting) setIsDeleteModalOpen(false); }} />
-    
-    <div className="relative bg-background w-full max-w-md rounded-[28px] shadow-2xl border border-foreground/5 p-6 z-10 transform transition-all animate-in fade-in zoom-in-95 duration-200 text-center">
-      <div className="w-12 h-12 rounded-full bg-red-500/10 text-primary flex items-center justify-center mx-auto mb-4">
-        <Trash className="w-5 h-5" />
-      </div>
       
-      <h3 className="text-lg font-bold tracking-tight text-foreground">Delete Destination?</h3>
-      <p className="text-sm text-foreground/50 mt-2 px-2">
-        Are you absolutely sure you want to remove this location from your inventory? This action cannot be undone.
-      </p>
+      {/* Delete Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="absolute inset-0" onClick={() => { if (!isDeleting) setIsDeleteModalOpen(false); }} />
+          
+          <div className="relative bg-background w-full max-w-md rounded-[28px] shadow-2xl border border-foreground/5 p-6 z-10 transform transition-all animate-in fade-in zoom-in-95 duration-200 text-center">
+            <div className="w-12 h-12 rounded-full bg-red-500/10 text-primary flex items-center justify-center mx-auto mb-4">
+              <Trash className="w-5 h-5" />
+            </div>
+            
+            <h3 className="text-lg font-bold tracking-tight text-foreground">Delete Destination?</h3>
+            <p className="text-sm text-foreground/50 mt-2 px-2">
+              Are you absolutely sure you want to remove this location from your inventory? This action cannot be undone.
+            </p>
 
-      <div className="flex items-center justify-center gap-3 mt-6 pt-4 border-t border-foreground/5">
-        <button 
-          type="button" 
-          disabled={isDeleting}
-          onClick={() => { setIsDeleteModalOpen(false); setDestinationToDelete(null); }} 
-          className="px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-foreground/5 text-foreground/70 transition-colors disabled:opacity-50"
-        >
-          Cancel
-        </button>
-        <button 
-          type="button"
-          disabled={isDeleting}
-          onClick={handleConfirmDelete} 
-          className="px-5 py-2.5 bg-primary text-white hover:bg-red-700 font-semibold text-sm rounded-xl transition-all active:scale-95 disabled:opacity-50 shadow-md shadow-red-600/10"
-        >
-          {isDeleting ? "Deleting..." : "Delete Listing"}
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+            <div className="flex items-center justify-center gap-3 mt-6 pt-4 border-t border-foreground/5">
+              <button 
+                type="button" 
+                disabled={isDeleting}
+                onClick={() => { setIsDeleteModalOpen(false); setDestinationToDelete(null); }} 
+                className="px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-foreground/5 text-foreground/70 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button 
+                type="button"
+                disabled={isDeleting}
+                onClick={handleConfirmDelete} 
+                className="px-5 py-2.5 bg-primary text-white hover:bg-red-700 font-semibold text-sm rounded-xl transition-all active:scale-95 disabled:opacity-50 shadow-md shadow-red-600/10"
+              >
+                {isDeleting ? "Deleting..." : "Delete Listing"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
