@@ -87,7 +87,6 @@ export default function AdminBusinessDetailPage() {
   const [actionNote, setActionNote] = useState("");
   const [actingOn, setActingOn] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const fetchData = async () => {
     try {
@@ -149,11 +148,7 @@ export default function AdminBusinessDetailPage() {
     }
   };
   const getViewerUrl = (url: string, fileName: string) => {
-    const ext = fileName?.split(".").pop()?.toLowerCase();
-    if (["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx"].includes(ext || "")) {
-      return `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
-    }
-    return url;
+    return `/api/proxy-document?url=${encodeURIComponent(url)}&fileName=${encodeURIComponent(fileName || "")}`;
   };
 
   if (loading) return (
@@ -325,7 +320,7 @@ export default function AdminBusinessDetailPage() {
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                           {business.industryDetails.documents.map((v: any, idx: number) => (
-                            <button key={idx} onClick={() => setPreviewUrl(getViewerUrl(v.url, v.fileName))}
+                            <a key={idx} href={getViewerUrl(v.url, v.fileName)} target="_blank" rel="noopener noreferrer"
                               className="flex items-center gap-4 p-5 rounded-[28px] bg-foreground/[0.01] border border-foreground/[0.05] hover:border-primary/20 hover:shadow-xl transition-all group/doc">
                               <div className="w-12 h-12 rounded-2xl bg-primary/5 flex items-center justify-center text-primary group-hover/doc:bg-primary group-hover/doc:text-white transition-all shrink-0">
                                 <FileText className="w-6 h-6" />
@@ -334,7 +329,7 @@ export default function AdminBusinessDetailPage() {
                                 <span className="text-[8px] font-black uppercase text-foreground/20 block mb-1">{v.fieldName}</span>
                                 <span className="text-sm font-extrabold text-foreground/60 truncate block uppercase">{v.fileName || "View Document"}</span>
                               </div>
-                            </button>
+                            </a>
                           ))}
                         </div>
                       </div>
@@ -432,19 +427,7 @@ export default function AdminBusinessDetailPage() {
           </div>
         )}
       </main>
-      {previewUrl && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-white rounded-[32px] w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden shadow-2xl">
-            <div className="flex items-center justify-between px-8 py-5 border-b border-foreground/5">
-              <span className="text-sm font-black uppercase tracking-widest text-foreground/40">Document Preview</span>
-              <button onClick={() => setPreviewUrl(null)} className="p-2 rounded-full hover:bg-foreground/5 text-foreground/40 hover:text-foreground">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <iframe src={previewUrl} className="flex-1 w-full" title="Document Preview" />
-          </div>
-        </div>
-      )}
+
     </div>
   );
 }
