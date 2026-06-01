@@ -84,7 +84,7 @@ export default function DestinationInventory() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Track existing links or newly selected local files side by side
+  // Track existing links or newly selected local files sid
   const [uploadedImages, setUploadedImages] = useState<(string | File)[]>([]);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
