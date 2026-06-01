@@ -38,8 +38,8 @@ export async function GET(request: Request) {
     }
 
     // Detect MIME type from URL extension
-    const ext = url.split("?")[0].split(".").pop()?.toLowerCase()  "";
-    const contentType = MIME_MAP[ext]  "application/octet-stream";
+    const ext = url.split("?")[0].split(".").pop()?.toLowerCase() || "";
+    const contentType = MIME_MAP[ext] || "application/octet-stream";
 
     const fileResponse = await fetch(url);
     if (!fileResponse.ok) {
