@@ -49,11 +49,12 @@ export async function POST(req: Request) {
         const base64 = `data:${file.type};base64,${buffer.toString("base64")}`;
 
 
-        const uploaded = await cloudinary.uploader.upload(base64, {
-          folder: "category-requests",
-          resource_type: file.type.startsWith("image/") ? "image" : "raw",
-          public_id: `req_${Date.now()}_${file.name.replace(/\s+/g, "_")}`,
-        });
+       const nameWithoutExt = file.name.replace(/\s+/g, "_").replace(/\.[^/.]+$/, "");
+const uploaded = await cloudinary.uploader.upload(base64, {
+  folder: "category-requests",
+  resource_type: file.type.startsWith("image/") ? "image" : "raw",
+  public_id: `req_${Date.now()}_${nameWithoutExt}`,
+});
 
         industryFilesMetadata.push({
           fieldName: key.replace("file_", ""),
