@@ -161,7 +161,7 @@ const handleTriggerDelete = (id: string) => {
         const res = await fetch(`/api/destinations`);
         const data = await res.json();
         setDestinations(Array.isArray(data) ? data : []);
-      } } catch (error: any) {
+      }  catch (error: any) {
   console.error("Error fetching destinations:", error);
   return NextResponse.json({ 
     error: "Failed to fetch destinations",
