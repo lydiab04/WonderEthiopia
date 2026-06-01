@@ -7,8 +7,13 @@ import dbConnect from "@/lib/mongodb";
 import Business from "@/models/Business";
 import AppNotification from "@/models/Notification";
 import { pusherServer } from "@/lib/pusher";
-import path from "path";
-import { mkdir, writeFile } from "fs/promises";
+import { v2 as cloudinary } from "cloudinary";
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 export async function POST(req: Request) {
   try {
@@ -45,15 +50,16 @@ export async function POST(req: Request) {
     let documentAttachment = "";
     let documentUrl = "";
     if (file) {
-      const uploadDir = path.join(process.cwd(), "public", "uploads");
-      try { await mkdir(uploadDir, { recursive: true }); } catch (e) {}
-
       const buffer = Buffer.from(await file.arrayBuffer());
-      const fileName = `revoke_${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
-      const filePath = path.join(uploadDir, fileName);
-      
-      await writeFile(filePath, buffer);
-      const publicUrl = `/uploads/${fileName}`;
+      const base64 = `data:${file.type};base64,${buffer.toString("base64")}`;
+
+      const uploaded = await cloudinary.uploader.upload(base64, {
+        folder: "revocations",
+        resource_type: "auto",
+        public_id: `revoke_${Date.now()}_${file.name.replace(/\s+/g, "_").split(".")[0]}`,
+      });
+
+      const publicUrl = uploaded.secure_url;
       documentAttachment = `\n\n**Supporting Administrative Document:** [${file.name}](${publicUrl})`;
       documentUrl = publicUrl;
     }
