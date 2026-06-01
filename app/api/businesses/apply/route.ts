@@ -127,11 +127,13 @@ export async function POST(request: Request) {
       { status: 201 }
     );
   } catch (error: any) {
-    console.error("Application error:", error);
-    
-    // Send a professional message to the user, hiding internal technical details
+    console.error("FULL ERROR:", error);
     return NextResponse.json(
-      { error: error.message || "An unexpected error occurred", stack: error.stack  },
+      { 
+        error: error.message,
+        code: error.code,
+        stack: error.stack 
+      },
       { status: 500 }
     );
   }
