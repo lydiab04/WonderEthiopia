@@ -157,7 +157,7 @@ export default function DestinationDetail() {
         {/* Back Button */}
         <div className="absolute top-24 left-4 md:left-8 z-10">
           <Link
-            href="/discover/destinations"
+            href="/tourism-admin/destination-inventory"
             className="inline-flex items-center gap-2 text-white bg-black/30 hover:bg-black/50 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 transition"
           >
             <ChevronLeft className="w-4 h-4" />
