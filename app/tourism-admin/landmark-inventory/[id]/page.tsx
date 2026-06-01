@@ -46,7 +46,7 @@ export default function LandmarkDetail() {
         // Try to read error text if the server sent an HTML error wrapper
         const errorText = await res.text();
         console.error(`[API Error] HTTP Status: ${res.status} ${res.statusText}`);
-        console.error(`[API Response Snippet]:`, errorText.slice(0, 300)); // Log first 300 chars of the page
+        console.error(`[API Response Snippet]:`, errorText.slice(0, 300)); 
         
         throw new Error(`Server responded with status ${res.status}`);
       }
