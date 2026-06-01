@@ -6,8 +6,14 @@ import Business from "@/models/Business";
 import AppNotification from "@/models/Notification";
 import User from "@/models/User";
 import { sendExpansionApprovalEmail, sendExpansionRejectionEmail } from "@/lib/email";
-import path from "path";
-import { mkdir, writeFile } from "fs/promises";
+import { v2 as cloudinary } from "cloudinary";
+
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 export async function POST(req: Request) {
   try {
@@ -33,8 +39,6 @@ export async function POST(req: Request) {
     }
 
     // Process File Uploads
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
-    try { await mkdir(uploadDir, { recursive: true }); } catch (e) {}
 
     const industryFilesMetadata: any[] = [];
     for (const [key, value] of Array.from(formData.entries())) {
@@ -42,15 +46,19 @@ export async function POST(req: Request) {
         const file = value;
         const buffer = Buffer.from(await file.arrayBuffer());
         const fileName = `req_${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
-        const filePath = path.join(uploadDir, fileName);
-        
-        await writeFile(filePath, buffer);
-        const publicUrl = `/uploads/${fileName}`;
-        
+        const base64 = `data:${file.type};base64,${buffer.toString("base64")}`;
+
+
+        const uploaded = await cloudinary.uploader.upload(base64, {
+          folder: "category-requests",
+          resource_type: "auto",
+          public_id: `req_${Date.now()}_${file.name.replace(/\s+/g, "_")}`,
+        });
+
         industryFilesMetadata.push({
           fieldName: key.replace("file_", ""),
           fileName: file.name,
-          url: publicUrl
+          url: uploaded.secure_url,
         });
       }
     }
