@@ -159,7 +159,7 @@ export default function NotificationCenter() {
                        {n.relatedId && (
                          <Link 
                            href={getActionHref(n.type, session?.user?.role)}
-                           onClick={() => { setIsOpen(false); if (!n.isRead) markAsRead(n._id); }}
+                           onClick={() => setIsOpen(false)}
                            className="inline-flex items-center gap-2 text-xs font-black text-primary uppercase tracking-widest hover:underline"
                          >
                            <Building2 className="w-3.5 h-3.5" /> {getActionText(n.type)}
