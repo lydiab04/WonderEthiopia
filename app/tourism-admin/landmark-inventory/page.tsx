@@ -204,7 +204,7 @@ export default function LandmarkInventory() {
 
     for (const item of uploadedImages) {
       if (typeof item === "string") {
-        finalCloudUrls.push(item); // existing URL from edit mode
+        finalCloudUrls.push(item); // existing URL from 
       } else {
         const data = new FormData();
         data.append("file", item);
