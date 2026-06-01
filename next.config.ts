@@ -40,8 +40,9 @@ const nextConfig: NextConfig = {
         hostname: "whc.unesco.org",
         pathname: "/**"
       },{
-        pathname:"https",
-        hostname:"res.cloudinary.com"
+        protocol:"https",
+        hostname:"res.cloudinary.com",
+        pathname:"/**"
       }
     ],
   },
