@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     // Process files
     const uploadedFilePaths: string[] = [];
     const industryFilesMetadata: any[] = [];
-    const bucket = adminStorage.bucket();
+    const bucket = adminStorage.bucket(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET);
     
     for (const [key, value] of Array.from(formData.entries())) {
       if (key.startsWith("file_") && value instanceof File) {
