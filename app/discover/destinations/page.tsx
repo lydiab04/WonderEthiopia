@@ -188,7 +188,7 @@ export default function DiscoverDestinations() {
                   <div className="relative h-72 rounded-[32px] overflow-hidden mb-6 shadow-inner">
                     {dest.images && dest.images[1] ? (
                       <img
-                        src={dest.images[1]}
+                        src={dest.images[0]}
                         alt={dest.name}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                       />
