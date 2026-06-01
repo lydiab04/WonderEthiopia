@@ -70,6 +70,10 @@ export default function SettingsPage() {
     showToast("Validation Error", "Contact Line cannot be left empty.", "error");
     return false;
   }
+  if (profile.name.trim().length < 3) {
+  showToast("Validation Error", "Official Name must be at least 3 characters.", "error");
+  return false;
+}
   if (profile.phoneNumber.replace(/[^0-9]/g, "").length < 9) {
     showToast("Validation Error", "Phone number must contain at least 9 digits.", "error");
     return false;
