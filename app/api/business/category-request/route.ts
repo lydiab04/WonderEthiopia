@@ -51,7 +51,7 @@ export async function POST(req: Request) {
 
         const uploaded = await cloudinary.uploader.upload(base64, {
           folder: "category-requests",
-          resource_type: "auto",
+          resource_type: file.type.startsWith("image/") ? "image" : "raw",
           public_id: `req_${Date.now()}_${file.name.replace(/\s+/g, "_")}`,
         });
 
