@@ -44,10 +44,7 @@ export async function GET(
   } catch (error: any) {
     console.error("GET Landmark Error:", error);
     return NextResponse.json(
-      {
-        error: error.message || "Internal server error",
-        details: { name: error.name, code: error.code }
-      },
+      { error: error.message || "Internal server error", details: { name: error.name, code: error.code } },
       { status: 500 }
     );
   }
