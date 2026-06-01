@@ -74,6 +74,11 @@ export async function POST(request: Request) {
         }, { status: 403 });
       }
 
+      // Ensure the stored password exists before comparing
+      if (!user.password) {
+        console.error(`[SECURITY] Stored password missing for user ${email}.`);
+        return NextResponse.json({ error: "Internal server error: user credentials unavailable. Please contact support." }, { status: 500 });
+      }
       const isMatch = await bcrypt.compare(tempPassword, user.password);
       if (!isMatch) {
          console.warn(`[SECURITY] Password mismatch for ${email}.`);
