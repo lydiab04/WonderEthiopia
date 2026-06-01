@@ -34,6 +34,16 @@ export default function LandingPage() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // Lock body scroll when drawer is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => { document.body.style.overflow = "unset"; };
+  }, [mobileMenuOpen]);
+
   useEffect(() => {
     async function fetchData() {
       try {
@@ -58,10 +68,7 @@ export default function LandingPage() {
       }
     }
 
-    // Initial fetch
     fetchData();
-
-    // Live sync interval (poll every 10s for immediate visibility updates)
     const syncInterval = setInterval(fetchData, 10000);
 
     const handleScroll = () => {
@@ -75,28 +82,110 @@ export default function LandingPage() {
     };
   }, []);
 
-  const categories = [
-    { name: "Hotels & Lodges", value: "hotel", icon: <Globe className="w-5 h-5" /> },
-    { name: "Tour Operators", value: "tour_operator", icon: <MapPin className="w-5 h-5" /> },
-    { name: "Events", value: "event_organizer", icon: <Calendar className="w-5 h-5" /> },
-    { name: "Car Rentals", value: "car_rental", icon: <Camera className="w-5 h-5" /> },
+  const navLinks = [
+    { name: "Discover", href: status === "authenticated" ? "/discover" : "#", anchor: "#" },
+    { name: "Destinations", href: "/discover/destinations", anchor: "#destinations" },
+    { name: "Partners", href: "/discover/businesses", anchor: "#partners" },
   ];
 
   return (
     <div className="min-h-screen bg-background text-foreground transition-all duration-500 font-sans selection:bg-primary/10 selection:text-primary">
-      {/* Navigation */}
+
+      {/* ── Mobile Drawer Overlay ── */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm md:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* ── Mobile Drawer Panel ── */}
+      <div
+        className={`fixed top-0 right-0 z-50 h-full w-[80vw] max-w-xs bg-background shadow-2xl flex flex-col transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] md:hidden ${
+          mobileMenuOpen ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
+        {/* Drawer Header */}
+        <div className="flex items-center justify-between px-6 pt-8 pb-6 border-b border-foreground/[0.05]">
+          <Link
+            href="/"
+            onClick={() => setMobileMenuOpen(false)}
+            className="text-base font-bold tracking-tighter text-primary flex items-center gap-2"
+          >
+            <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center text-white font-black text-sm">W</div>
+            WONDER ETHIOPIA
+          </Link>
+          <button
+            onClick={() => setMobileMenuOpen(false)}
+            className="p-2 rounded-full hover:bg-foreground/5 text-foreground/50 hover:text-foreground transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Drawer Nav Links */}
+        <nav className="flex flex-col gap-1 px-4 py-6 flex-1">
+          {navLinks.map((item) => (
+            <Link
+              key={item.name}
+              href={status === "authenticated" ? item.href : item.anchor}
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center justify-between px-4 py-4 rounded-2xl text-base font-bold text-foreground/70 hover:text-primary hover:bg-primary/5 transition-all group"
+            >
+              {item.name}
+              <ChevronRight className="w-4 h-4 opacity-30 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+            </Link>
+          ))}
+        </nav>
+
+        {/* Drawer Auth Buttons */}
+        <div className="px-4 pb-10 space-y-3 border-t border-foreground/[0.05] pt-6">
+          {session ? (
+            <Link
+              href="/dashboard"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block w-full text-center px-5 py-3.5 bg-primary text-white text-sm font-black rounded-2xl hover:bg-primary-hover shadow-lg shadow-primary/20 transition-all active:scale-95"
+            >
+              My Dashboard
+            </Link>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block w-full text-center px-5 py-3.5 bg-foreground/[0.04] text-foreground text-sm font-black rounded-2xl hover:bg-foreground/[0.08] transition-all active:scale-95"
+              >
+                Login
+              </Link>
+              <Link
+                href="/register"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block w-full text-center px-5 py-3.5 bg-foreground text-background text-sm font-black rounded-2xl hover:bg-foreground/90 transition-all active:scale-95"
+              >
+                Join Us
+              </Link>
+            </>
+          )}
+          <Link
+            href="/business"
+            onClick={() => setMobileMenuOpen(false)}
+            className="block w-full text-center px-5 py-3.5 border border-primary/20 text-primary text-sm font-black rounded-2xl hover:bg-primary/5 transition-all active:scale-95"
+          >
+            List Your Business
+          </Link>
+        </div>
+      </div>
+
+      {/* ── Navigation ── */}
       <nav
-        className={`fixed top-0 w-full z-50 transition-all duration-[800ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${
-          isScrolled 
-            ? "py-4 floating-glass border-b border-white/60 shadow-[0_8px_32px_rgba(27,38,59,0.04)]" 
+        className={`fixed top-0 w-full z-40 transition-all duration-[800ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${
+          isScrolled
+            ? "py-4 floating-glass border-b border-white/60 shadow-[0_8px_32px_rgba(27,38,59,0.04)]"
             : "py-8 bg-transparent border-b border-transparent shadow-none"
         }`}
       >
         <div className="max-w-7xl mx-auto px-3 md:px-4 lg:px-5 h-18 flex items-center justify-between">
-          <Link
-            href="/"
-            className="text-xl font-bold tracking-tighter text-primary flex items-center gap-2"
-          >
+          <Link href="/" className="text-xl font-bold tracking-tighter text-primary flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white font-black text-lg">W</div>
             WONDER ETHIOPIA
           </Link>
@@ -125,7 +214,8 @@ export default function LandingPage() {
             ))}
           </div>
 
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4">
+            {/* Desktop Auth */}
             <div className="hidden sm:flex items-center gap-6">
               {session ? (
                 <Link
@@ -136,10 +226,7 @@ export default function LandingPage() {
                 </Link>
               ) : (
                 <>
-                  <Link
-                    href="/login"
-                    className="text-base font-semibold text-foreground/80 hover:text-primary transition-colors"
-                  >
+                  <Link href="/login" className="text-base font-semibold text-foreground/80 hover:text-primary transition-colors">
                     Login
                   </Link>
                   <Link
@@ -151,19 +238,21 @@ export default function LandingPage() {
                 </>
               )}
             </div>
+
+            {/* Mobile Hamburger */}
             <button
-              className="md:hidden p-2 text-foreground"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden p-2 rounded-full hover:bg-foreground/5 text-foreground transition-colors"
+              onClick={() => setMobileMenuOpen(true)}
+              aria-label="Open menu"
             >
-              {mobileMenuOpen ? <X /> : <Menu />}
+              <Menu className="w-6 h-6" />
             </button>
           </div>
         </div>
       </nav>
 
-      {/* Hero Section */}
+      {/* ── Hero Section ── */}
       <section className="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden">
-        {/* Animated Background Content */}
         <div className="absolute inset-0 z-0">
           <Image
             src="/simien-mountains.png"
@@ -191,7 +280,6 @@ export default function LandingPage() {
             Experience the majestic Simien Mountains, ancient wonders, and the vibrant cultural tapestry of a nation with 3,000 years of history.
           </p>
 
-          {/* Search Bar */}
           <div className="max-w-4xl mx-auto floating-glass p-4 rounded-[32px] flex flex-col sm:flex-row gap-4 animate-slide-up delay-2 shadow-premium">
             <div className="flex-[1.5] flex items-center px-3 md:px-4 lg:px-5 gap-4 border-r border-foreground/5 mb-2 sm:mb-0">
               <Search className="w-6 h-6 text-primary" />
@@ -218,7 +306,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Top Destinations */}
+      {/* ── Top Destinations ── */}
       <section id="destinations" className="py-32 bg-surface-elevated/30">
         <div className="max-w-7xl mx-auto px-3 md:px-4 lg:px-5">
           <div className="flex flex-col sm:flex-row items-end justify-between mb-20 gap-8">
@@ -237,15 +325,11 @@ export default function LandingPage() {
               destinations.map((dest: any) => (
                 <div key={dest._id} className="group relative h-[550px] rounded-[56px] overflow-hidden shadow-premium cursor-pointer hover-lift">
                   <Image
-                    src={
-                      (() => {
-                        const img = dest.images?.[0];
-                        if (img && img.trim() !== "" && (img.startsWith('/') || img.startsWith('http'))) {
-                          return img;
-                        }
-                        return "/lalibela.png";
-                      })()
-                    }
+                    src={(() => {
+                      const img = dest.images?.[0];
+                      if (img && img.trim() !== "" && (img.startsWith('/') || img.startsWith('http'))) return img;
+                      return "/lalibela.png";
+                    })()}
                     alt={dest.name}
                     fill
                     className="object-cover group-hover:scale-110 transition-all duration-1000"
@@ -273,7 +357,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Trust & Quality Section */}
+      {/* ── Trust Section ── */}
       <section className="py-32 border-y border-foreground/5 overflow-hidden">
         <div className="max-w-7xl mx-auto px-3 md:px-4 lg:px-5">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
@@ -293,7 +377,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Featured Businesses */}
+      {/* ── Featured Businesses ── */}
       <section id="partners" className="py-32 relative">
         <div className="max-w-7xl mx-auto px-3 md:px-4 lg:px-5">
           <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between mb-16 gap-6">
@@ -314,30 +398,23 @@ export default function LandingPage() {
             </div>
           ) : businesses.length === 0 ? (
             <div className="text-center py-32 rounded-3xl border-2 border-dashed border-foreground/5">
-              <p className="text-foreground/40 font-semibold italic text-lg">
-                Curating premium experiences for you soon...
-              </p>
+              <p className="text-foreground/40 font-semibold italic text-lg">Curating premium experiences for you soon...</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
               {businesses.map((biz) => (
-                <div
-                  key={biz._id}
-                  className="group floating-glass rounded-[48px] p-6 hover-lift overflow-hidden shadow-premium"
-                >
+                <div key={biz._id} className="group floating-glass rounded-[48px] p-6 hover-lift overflow-hidden shadow-premium">
                   <div className="relative h-80 rounded-[40px] overflow-hidden mb-8 shadow-inner">
                     <Image
-                      src={biz.profilePicture || 
-                        (Array.isArray(biz.category) ? categoryImages[biz.category[0]] : categoryImages[biz.category]) || 
+                      src={biz.profilePicture ||
+                        (Array.isArray(biz.category) ? categoryImages[biz.category[0]] : categoryImages[biz.category]) ||
                         "/lalibela.png"}
                       alt={biz.name}
                       fill
                       className="object-cover group-hover:scale-110 transition-transform duration-1000"
                     />
                     <div className="absolute top-6 right-6 px-5 py-2 glass rounded-full text-xs font-black tracking-[0.2em] uppercase text-foreground">
-                      {Array.isArray(biz.category) 
-                        ? biz.category[0].replace("_", " ")
-                        : biz.category.replace("_", " ")}
+                      {Array.isArray(biz.category) ? biz.category[0].replace("_", " ") : biz.category.replace("_", " ")}
                     </div>
                   </div>
                   <div className="px-4 pb-4">
@@ -379,12 +456,11 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* CTA Section */}
+      {/* ── CTA Section ── */}
       <section className="py-32 px-3 md:px-4 lg:px-5">
         <div className="max-w-7xl mx-auto relative overflow-hidden rounded-[50px] shadow-2xl">
           <div className="absolute inset-0 bg-primary/95" />
           <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-white/10 rounded-full blur-[100px] -mr-40 -mt-40" />
-
           <div className="relative z-10 p-20 md:p-32 text-center text-white">
             <h2 className="text-4xl md:text-6xl font-bold mb-8 tracking-tighter leading-tight">
               LIST YOUR SERVICE <br /> ON WONDER ETHIOPIA
@@ -402,7 +478,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Footer */}
+      {/* ── Footer ── */}
       <footer className="bg-surface-elevated pt-24 pb-12">
         <div className="max-w-7xl mx-auto px-3 md:px-4 lg:px-5">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-16 mb-20">
