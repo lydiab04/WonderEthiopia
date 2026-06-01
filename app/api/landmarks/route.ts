@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Landmark from "@/models/Landmark";
-import { getImageEmbedding } from "./recognize/route";
+import { formatError } from "@/lib/apiError";
 
 export async function GET() {
   await dbConnect();
@@ -12,16 +12,7 @@ export async function GET() {
     return NextResponse.json(landmarks);
   } catch (error: any) {
     console.error("GET Landmarks Error:", error);
-    return NextResponse.json(
-      {
-        error: error.message || "Server error",
-        details: {
-          stack: error.stack,
-          name: error.name
-        }
-      },
-      { status: 500 }
-    );
+    return NextResponse.json(formatError(error, 500));
   }
 }
 
@@ -29,6 +20,8 @@ export async function POST(request: Request) {
   await dbConnect();
 
   try {
+    // Dynamically import the embedding function only when needed (POST)
+import { getImageEmbedding } from "./recognize/route";
     // 1. Read directly as JSON matching your frontend layout setup
     const body = await request.json();
     const {
@@ -110,13 +103,7 @@ export async function POST(request: Request) {
     return NextResponse.json(landmark);
   } catch (error: any) {
     console.error("POST Landmark Error:", error);
-    return NextResponse.json(
-      {
-        error: error.message || "Server error",
-        details: { stack: error.stack, name: error.name, code: (error as any).code }
-      },
-      { status: 500 }
-    );
+    return NextResponse.json(formatError(error, 500));
   }
 }
 
