@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { v2 as cloudinary } from "cloudinary";
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 export async function POST(request: Request) {
   try {
@@ -19,19 +24,15 @@ export async function POST(request: Request) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const fileName = `${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
+    const base64 = `data:${file.type};base64,${buffer.toString("base64")}`;
 
-    try {
-      await mkdir(uploadDir, { recursive: true });
-    } catch (e) {}
+    const uploaded = await cloudinary.uploader.upload(base64, {
+      folder: "general_uploads",
+      resource_type: "auto",
+      public_id: `${Date.now()}_${file.name.replace(/\s+/g, "_").split(".")[0]}`,
+    });
 
-    const filePath = path.join(uploadDir, fileName);
-    await writeFile(filePath, buffer);
-
-    const publicUrl = `/uploads/${fileName}`;
-
-    return NextResponse.json({ url: publicUrl });
+    return NextResponse.json({ url: uploaded.secure_url });
   } catch (error: any) {
     console.error("Upload error:", error);
     return NextResponse.json({ error: "Upload failed" }, { status: 500 });
