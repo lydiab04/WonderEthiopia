@@ -200,7 +200,10 @@ export default function SettingsPage() {
                   type="text"
                   value={profile.name}
                   disabled={!isEditing}
-                  onChange={e => setProfile({ ...profile, name: e.target.value })}
+                  onChange={e => {
+                  const letters = e.target.value.replace(/[^a-zA-Z\s]/g, "");
+                  setProfile({ ...profile, name: letters });
+                }}
                   className={`w-full px-8 py-5 bg-foreground/[0.02] border border-foreground/[0.05] rounded-3xl text-sm font-bold focus:ring-4 focus:ring-primary/5 outline-none transition-all ${!isEditing ? "opacity-50 cursor-not-allowed" : ""}`}
                 />
               </div>
