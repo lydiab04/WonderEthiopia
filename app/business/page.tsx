@@ -202,7 +202,7 @@ export default function BusinessPortalPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <label className="text-sm font-bold text-foreground/30 uppercase tracking-widest">Applicant Name</label>
-                      <input name="applicantName" type="text" value={formData.applicantName} onChange={handleChange} required className={inputClass} placeholder="Your full name" />
+                      <input name="applicantName" type="text" value={formData.applicantName} onChange={e => setFormData({ ...formData, applicantName: e.target.value.replace(/[^a-zA-Z\s]/g, "") })} required className={inputClass} placeholder="Your full name" />
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-bold text-foreground/30 uppercase tracking-widest">Business Name</label>
@@ -265,7 +265,7 @@ export default function BusinessPortalPage() {
                       <option key={r} value={r}>{r}</option>
                     ))}
                   </select>
-                    <input name="city" type="text" value={formData.city} onChange={handleChange} required className={inputClass} placeholder="City / Town" />
+                    <input name="city" type="text" value={formData.city} onChange={e => setFormData({ ...formData, city: e.target.value.replace(/[^a-zA-Z\s]/g, "") })} required className={inputClass} placeholder="City / Town" />
                     <input name="address" type="text" value={formData.address} onChange={handleChange} required className={inputClass} placeholder="Full Address" />
                   </div>
                 </div>
@@ -305,7 +305,10 @@ export default function BusinessPortalPage() {
                       <div className="space-y-6 pt-6 border-t border-foreground/[0.03]">
                         <h4 className="text-sm font-black text-primary uppercase tracking-widest">Tour Operator Details</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <input name="languages" type="text" placeholder="Supported Languages" onChange={handleIndustryChange} required className={inputClass} />
+                          <input name="languages" type="text" placeholder="Supported Languages" onChange={e => {
+                            const letters = e.target.value.replace(/[^a-zA-Z\s,]/g, "");
+                            setFormData({ ...formData, industryDetails: { ...formData.industryDetails, languages: letters } });
+                          }}required className={inputClass} />
                           <input name="specialization" type="text" placeholder="Expedition Focus" onChange={handleIndustryChange} required className={inputClass} />
                           <div className="md:col-span-2 space-y-2">
                             <label className="text-sm font-bold tracking-widest uppercase text-foreground/30">Tour Certificate</label>
