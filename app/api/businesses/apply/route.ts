@@ -3,6 +3,31 @@ import dbConnect from "@/lib/mongodb";
 import Business from "@/models/Business";
 import AppNotification from "@/models/Notification";
 import { pusherServer } from "@/lib/pusher";
+import { v2 as cloudinary } from "cloudinary";
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+const uploadToCloudinary = (buffer: Buffer, originalFilename: string): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: "business_uploads",
+        resource_type: "auto",
+        public_id: `${Date.now()}_${originalFilename.replace(/\\s+/g, "_").split(".")[0]}`
+      },
+      (error, result) => {
+        if (error) return reject(error);
+        if (!result) return reject(new Error("Cloudinary upload failed"));
+        resolve(result.secure_url);
+      }
+    );
+    uploadStream.end(buffer);
+  });
+};
 
 export async function POST(request: Request) {
   try {
@@ -51,22 +76,19 @@ export async function POST(request: Request) {
     // Process files
     const uploadedFilePaths: string[] = [];
     const industryFilesMetadata: any[] = [];
-    
-    // Warning: Storing files as Base64 in MongoDB has a hard limit of 16MB per document.
+
     for (const [key, value] of Array.from(formData.entries())) {
       if (key.startsWith("file_") && value instanceof File) {
         const file = value;
         const buffer = Buffer.from(await file.arrayBuffer());
         
-        // Convert file buffer to Base64 string
-        const base64Data = buffer.toString("base64");
-        const dataUrl = `data:${file.type};base64,${base64Data}`;
-        
-        uploadedFilePaths.push(dataUrl);
+        const publicUrl = await uploadToCloudinary(buffer, file.name);
+
+        uploadedFilePaths.push(publicUrl);
         industryFilesMetadata.push({
           fieldName: key.replace("file_", ""),
           fileName: file.name,
-          url: dataUrl
+          url: publicUrl
         });
       }
     }
@@ -123,7 +145,15 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error("Application error:", error);
 
-    // Provide a professional message to the user for unexpected errors
+    // Provide a professional, specific message if storage is misconfigured
+    if (error?.message && error.message.includes("Cloudinary")) {
+      return NextResponse.json(
+        { error: "Our file storage system is currently unavailable. Please try submitting your application later." },
+        { status: 503 }
+      );
+    }
+
+    // Send a professional message to the user for other unexpected errors
     return NextResponse.json(
       { error: "An unexpected error occurred while processing your application. Please try again later." },
       { status: 500 }
