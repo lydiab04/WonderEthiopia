@@ -44,14 +44,22 @@ export async function PUT(
     // Process embeddings for updated images
     for (const item of galleryItems) {
       if (typeof item !== "string") continue;
-
       const arrayBuffer = await getArrayBufferFromItem(item);
       if (!arrayBuffer) continue;
-
-      // Re-generate your vector embedding using your local handler
-      const embedding = await getImageEmbedding(arrayBuffer);
-      allEmbeddings.push(embedding);
-      galleryPaths.push(item);
+      try {
+        const embedding = await getImageEmbedding(arrayBuffer);
+        allEmbeddings.push(embedding);
+        galleryPaths.push(item);
+      } catch (embedErr: any) {
+        console.error("Embedding generation failed for gallery item:", embedErr);
+        return NextResponse.json(
+          {
+            error: "Failed to process image embedding during update",
+            details: { name: embedErr.name, stack: embedErr.stack }
+          },
+          { status: 500 }
+        );
+      }
     }
 
     // Build the update payload dynamically
@@ -92,9 +100,12 @@ export async function PUT(
     return NextResponse.json(updatedLandmark);
 
   } catch (error: any) {
-    console.error("PUT Error:", error);
+    console.error("PUT Landmark Error:", error);
     return NextResponse.json(
-      { error: error.message || "Server error" },
+      {
+        error: error.message || "Server error",
+        details: { name: error.name, stack: error.stack, code: error.code }
+      },
       { status: 500 }
     );
   }
@@ -116,7 +127,13 @@ export async function DELETE(
 
     return NextResponse.json({ message: "Delete successful" });
   } catch (error: any) {
-    console.error("Error fetching landmark:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error("DELETE Landmark Error:", error);
+    return NextResponse.json(
+      {
+        error: error.message || "Internal server error",
+        details: { name: error.name, stack: error.stack, code: error.code }
+      },
+      { status: 500 }
+    );
   }
 }
