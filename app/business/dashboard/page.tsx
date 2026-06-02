@@ -258,12 +258,12 @@ export default function BusinessDashboardPage() {
           }
         }
       });
-allBookings.sort((a, b) =>
-      new Date(b.createdAt || b.pick_up_date || b.check_in_date || 0).getTime() -
-      new Date(a.createdAt || a.pick_up_date || a.check_in_date || 0).getTime()
-    );
+      allBookings.sort((a, b) =>
+        new Date(b.createdAt || b.pick_up_date || b.check_in_date || 0).getTime() -
+        new Date(a.createdAt || a.pick_up_date || a.check_in_date || 0).getTime()
+      );
 
-    setBookings(allBookings);
+      setBookings(allBookings);
     } catch (e) {
       console.error("Critical Registry Fetch Error:", e);
     } finally {
@@ -887,7 +887,9 @@ allBookings.sort((a, b) =>
                   </div>
                   <div className="px-8 py-4 bg-foreground/5 rounded-3xl border border-foreground/10 text-center text-balance">
                     <div className="text-[9px] font-black uppercase tracking-widest text-foreground/30 mb-1">Aggregate Yield</div>
-                    <div className="text-2xl font-black text-emerald-500">{business?.currency || "ETB"} {bookings.reduce((acc, b) => acc + (b.totalPrice || 0), 0).toLocaleString()}</div>
+                    <div className="text-2xl font-black text-emerald-500">
+                      ETB {bookings.reduce((acc, b) => acc + (b.total_price || b.totalPrice || 0), 0).toLocaleString()}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -899,50 +901,99 @@ allBookings.sort((a, b) =>
                     <p className="text-sm font-black uppercase tracking-widest text-foreground/20 italic">No mission records detected in registry axis.</p>
                   </div>
                 ) : (
-                  bookings.map((booking) => (
-                    <div
-                      key={booking._id}
-                      onClick={() => setSelectedBooking(booking)}
-                      className="group bg-white p-8 rounded-[40px] border border-foreground/[0.03] shadow-lg hover:shadow-2xl hover:scale-[1.01] transition-all flex flex-col md:flex-row items-center justify-between gap-10 cursor-pointer"
-                    >
-                      <div className="flex items-center gap-8 w-full md:w-auto">
-                        <div className="w-20 h-20 rounded-3xl bg-primary/10 flex flex-col items-center justify-center text-primary shrink-0">
-                          <div className="text-[9px] font-black uppercase tracking-widest mb-1">{new Date(booking.startDate).toLocaleString('default', { month: 'short' })}</div>
-                          <div className="text-2xl font-black leading-none">{new Date(booking.startDate).getDate()}</div>
-                        </div>
-                        <div className="space-y-1">
-                          <h4 className="text-xl font-black tracking-tight">{booking.serviceId?.name || "Unidentified Service"}</h4>
-                          <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-2 text-xs font-bold text-foreground/40 uppercase">
-                              <Users className="w-3.5 h-3.5" /> {booking.guests} Explorers
-                            </div>
-                            <div className="w-1 h-1 rounded-full bg-foreground/10" />
-                            <div className="flex items-center gap-2 text-xs font-bold text-foreground/40 uppercase">
-                              {booking.userId?.name || "Guest Traveler"}
+                  bookings.map((booking) => {
+                    // Normalize across all booking types
+                    const type = booking._bookingType || "room";
+                    const typeIcons: Record<string, string> = { room: "🏨", car: "🚗", tour: "🧭", event: "🎟" };
+                    const typeLabels: Record<string, string> = { room: "Room", car: "Car Rental", tour: "Tour", event: "Event" };
+
+                    const serviceName =
+                      booking.serviceId?.name ||
+                      booking.roomId?.name ||
+                      booking.carId?.name ||
+                      booking.tourId?.name ||
+                      booking.eventId?.name ||
+                      booking.car_id?.name ||
+                      booking.room_id?.name ||
+                      booking.tour_id?.name ||
+                      booking.event_id?.name ||
+                      "Unidentified Service";
+
+                    const startDate =
+                      booking.startDate ||
+                      booking.check_in_date ||
+                      booking.pick_up_date ||
+                      booking.event_date ||
+                      null;
+
+                    const guestCount =
+                      booking.guests ??
+                      booking.number_of_guests ??
+                      booking.number_of_people ??
+                      booking.number_of_tickets ??
+                      1;
+
+                    const travelerName =
+                      booking.userId?.name ||
+                      booking.user_id?.name ||
+                      booking.full_name ||
+                      "Guest Traveler";
+
+                    const amount = booking.total_price || booking.totalPrice || 0;
+                    const currency = booking.currency || "ETB";
+
+                    return (
+                      <div
+                        key={booking._id}
+                        onClick={() => setSelectedBooking({ ...booking, _serviceName: serviceName, _startDate: startDate, _guestCount: guestCount, _travelerName: travelerName, _amount: amount, _currency: currency, _typeLabel: typeLabels[type] })}
+                        className="group bg-white p-8 rounded-[40px] border border-foreground/[0.03] shadow-lg hover:shadow-2xl hover:scale-[1.01] transition-all flex flex-col md:flex-row items-center justify-between gap-10 cursor-pointer"
+                      >
+                        <div className="flex items-center gap-8 w-full md:w-auto">
+                          <div className="w-20 h-20 rounded-3xl bg-primary/10 flex flex-col items-center justify-center text-primary shrink-0">
+                            {startDate ? (
+                              <>
+                                <div className="text-[9px] font-black uppercase tracking-widest mb-1">
+                                  {new Date(startDate).toLocaleString('default', { month: 'short' })}
+                                </div>
+                                <div className="text-2xl font-black leading-none">{new Date(startDate).getDate()}</div>
+                              </>
+                            ) : (
+                              <div className="text-2xl">{typeIcons[type]}</div>
+                            )}
+                          </div>
+                          <div className="space-y-2">
+                            <h4 className="text-xl font-black tracking-tight">{serviceName}</h4>
+                            <div className="flex flex-wrap items-center gap-3">
+                              <div className="px-3 py-1 rounded-full bg-primary/5 border border-primary/10 text-[9px] font-black uppercase tracking-widest text-primary">
+                                {typeIcons[type]} {typeLabels[type]}
+                              </div>
+                              <div className="flex items-center gap-2 text-xs font-bold text-foreground/40 uppercase">
+                                <Users className="w-3.5 h-3.5" /> {guestCount}
+                              </div>
+                              <div className="w-1 h-1 rounded-full bg-foreground/10" />
+                              <div className="text-xs font-bold text-foreground/40 uppercase">{travelerName}</div>
                             </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="flex items-center gap-12 w-full md:w-auto justify-between md:justify-end">
-                        <div className="text-right">
-                          <div className="text-[9px] font-black uppercase tracking-widest text-foreground/20 mb-1">Financial State</div>
-                          <div className="px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border bg-emerald-500/10 text-emerald-500 border-emerald-500/20">
-                            Paid ✓
+                        <div className="flex items-center gap-12 w-full md:w-auto justify-between md:justify-end">
+                          <div className="text-right">
+                            <div className="text-[9px] font-black uppercase tracking-widest text-foreground/20 mb-1">Financial State</div>
+                            <div className="px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border bg-emerald-500/10 text-emerald-500 border-emerald-500/20">
+                              Paid ✓
+                            </div>
+                          </div>
+                          <div className="text-right min-w-[120px]">
+                            <div className="text-[9px] font-black uppercase tracking-widest text-foreground/20 mb-1">Protocol Value</div>
+                            <div className="text-xl font-black text-primary">{currency} {amount.toLocaleString()}</div>
+                          </div>
+                          <div className={`w-14 h-14 rounded-full flex items-center justify-center border transition-all ${booking.status === 'confirmed' ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-primary/5 text-primary border-primary/10'}`}>
+                            {booking.status === 'confirmed' ? <CheckCircle2 className="w-6 h-6" /> : <Loader2 className="w-6 h-6 animate-spin" />}
                           </div>
                         </div>
-
-                        <div className="text-right min-w-[120px]">
-                          <div className="text-[9px] font-black uppercase tracking-widest text-foreground/20 mb-1">Protocol Value</div>
-                          <div className="text-xl font-black text-primary">{booking.currency} {booking.totalPrice?.toLocaleString()}</div>
-                        </div>
-
-                        <div className={`w-14 h-14 rounded-full flex items-center justify-center border transition-all ${booking.status === 'confirmed' ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-primary/5 text-primary border-primary/10'}`}>
-                          {booking.status === 'confirmed' ? <CheckCircle2 className="w-6 h-6" /> : <Loader2 className="w-6 h-6 animate-spin" />}
-                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
@@ -3501,77 +3552,125 @@ allBookings.sort((a, b) =>
       {selectedBooking && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 md:p-12">
           <div className="absolute inset-0 bg-background/80 backdrop-blur-xl animate-fade-in" onClick={() => setSelectedBooking(null)} />
-          <div className="relative w-full max-w-2xl bg-white rounded-[64px] border border-foreground/[0.05] shadow-3xl overflow-hidden animate-slide-up">
-            <div className="p-12 md:p-16 space-y-12">
+          <div className="relative w-full max-w-2xl bg-white rounded-[64px] border border-foreground/[0.05] shadow-3xl overflow-y-auto max-h-[90vh] animate-slide-up">
+            <div className="p-12 md:p-16 space-y-10">
+
+              {/* Header */}
               <div className="flex items-start justify-between">
                 <div>
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse" />
                     <span className="text-xs font-black tracking-[0.3em] uppercase text-primary">Mission Intel Report</span>
                   </div>
-                  <h2 className="text-4xl font-black tracking-tightest uppercase">{selectedBooking.serviceId?.name || "Service Profile"}</h2>
-                  <div className="text-xs font-bold text-foreground/30 uppercase mt-2">Registry ID: {selectedBooking._id}</div>
+                  <h2 className="text-3xl font-black tracking-tightest uppercase leading-none">
+                    {selectedBooking._serviceName || "Service"}
+                  </h2>
+                  <div className="flex items-center gap-3 mt-3">
+                    {selectedBooking._typeLabel && (
+                      <div className="px-3 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 text-[9px] font-black uppercase tracking-widest">
+                        {selectedBooking._typeLabel}
+                      </div>
+                    )}
+                    <div className="text-[9px] font-bold text-foreground/30 uppercase tracking-widest">ID: {selectedBooking._id}</div>
+                  </div>
                 </div>
-                <button onClick={() => setSelectedBooking(null)} className="w-14 h-14 rounded-full bg-foreground/5 hover:bg-foreground hover:text-white transition-all flex items-center justify-center">
+                <button onClick={() => setSelectedBooking(null)} className="w-14 h-14 rounded-full bg-foreground/5 hover:bg-foreground hover:text-white transition-all flex items-center justify-center shrink-0">
                   <X className="w-6 h-6" />
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                <div className="space-y-8">
-                  <div>
-                    <div className="text-[9px] font-black uppercase tracking-widest text-foreground/20 mb-3">Primary Explorer</div>
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-                        <User className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <div className="font-bold text-lg">{selectedBooking.userId?.name || "Guest traveler"}</div>
-                        <div className="text-xs text-foreground/40 font-medium">{selectedBooking.userId?.email}</div>
-                      </div>
-                    </div>
+              {/* Status banner */}
+              <div className={`flex items-center gap-4 px-8 py-5 rounded-3xl border ${selectedBooking.status === 'confirmed' ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-amber-500/10 border-amber-500/20'}`}>
+                {selectedBooking.status === 'confirmed' ? <CheckCircle2 className="w-5 h-5 text-emerald-500" /> : <Loader2 className="w-5 h-5 text-amber-500 animate-spin" />}
+                <div>
+                  <div className="text-[9px] font-black uppercase tracking-widest text-foreground/40 mb-0.5">Mission Status</div>
+                  <div className={`text-sm font-black uppercase tracking-wider ${selectedBooking.status === 'confirmed' ? 'text-emerald-600' : 'text-amber-600'}`}>
+                    {selectedBooking.status || 'Pending'}
                   </div>
+                </div>
+                <div className="ml-auto text-right">
+                  <div className="text-[9px] font-black uppercase tracking-widest text-foreground/40 mb-0.5">Payment</div>
+                  <div className="text-sm font-black text-emerald-600">Paid ✓</div>
+                </div>
+              </div>
 
-                  <div>
-                    <div className="text-[9px] font-black uppercase tracking-widest text-foreground/20 mb-3">Logistics Frame</div>
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-4">
-                        <Calendar className="w-5 h-5 text-primary/30" />
-                        <div className="text-sm font-bold uppercase tracking-tight">Deployment: {new Date(selectedBooking.startDate).toLocaleDateString()}</div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <Users className="w-5 h-5 text-primary/30" />
-                        <div className="text-sm font-bold uppercase tracking-tight">{selectedBooking.guests} Total Explorers</div>
+              {/* Explorer + Amount */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="p-7 bg-foreground/[0.02] rounded-[32px] border border-foreground/5 space-y-4">
+                  <div className="text-[9px] font-black uppercase tracking-[0.3em] text-foreground/30">Primary Explorer</div>
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                      <User className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="font-black text-sm">{selectedBooking._travelerName}</div>
+                      <div className="text-xs text-foreground/40 mt-0.5">
+                        {selectedBooking.userId?.email || selectedBooking.user_id?.email || "No email on record"}
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="space-y-8">
-                  <div>
-                    <div className="text-[9px] font-black uppercase tracking-widest text-foreground/20 mb-3">Financial Settlement</div>
-                    <div className="bg-primary/5 border border-primary/10 p-6 rounded-[32px]">
-                      <div className="text-3xl font-black text-primary tracking-tighter leading-none mb-2">
-                        {selectedBooking.currency} {selectedBooking.totalPrice?.toLocaleString()}
-                      </div>
-                      <div className="text-xs font-black uppercase tracking-widest text-emerald-500">Inventory Paid ✓</div>
-                    </div>
+                <div className="p-7 bg-primary/5 rounded-[32px] border border-primary/10 space-y-4">
+                  <div className="text-[9px] font-black uppercase tracking-[0.3em] text-foreground/30">Financial State</div>
+                  <div className="text-3xl font-black text-primary tracking-tighter leading-none">
+                    {selectedBooking._currency} {(selectedBooking._amount || 0).toLocaleString()}
                   </div>
-
-                  <div>
-                    <div className="text-[9px] font-black uppercase tracking-widest text-foreground/20 mb-3">Special Requirements</div>
-                    <p className="text-sm font-bold text-foreground/60 leading-relaxed italic border-l-2 border-primary/20 pl-6">
-                      {selectedBooking.specialRequests || "No specific modifications requested for this mission."}
-                    </p>
-                  </div>
+                  <div className="text-[9px] font-black text-foreground/30 uppercase tracking-widest">Total Protocol Value</div>
                 </div>
               </div>
 
-              <div className="pt-8 border-t border-foreground/5">
-                <button onClick={() => setSelectedBooking(null)} className="w-full py-5 bg-foreground text-background rounded-3xl text-xs font-black uppercase tracking-widest hover:bg-primary transition-all shadow-xl shadow-foreground/5">
-                  Close Report
-                </button>
+              {/* Logistics tiles */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {selectedBooking._startDate && (
+                  <div className="p-5 bg-foreground/[0.02] rounded-2xl border border-foreground/5 space-y-2">
+                    <Calendar className="w-4 h-4 text-primary/40" />
+                    <div className="text-[9px] font-black uppercase tracking-widest text-foreground/30">Start Date</div>
+                    <div className="font-black text-xs">
+                      {new Date(selectedBooking._startDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </div>
+                  </div>
+                )}
+                {(selectedBooking.check_out_date || selectedBooking.return_date) && (
+                  <div className="p-5 bg-foreground/[0.02] rounded-2xl border border-foreground/5 space-y-2">
+                    <Calendar className="w-4 h-4 text-primary/40" />
+                    <div className="text-[9px] font-black uppercase tracking-widest text-foreground/30">End Date</div>
+                    <div className="font-black text-xs">
+                      {new Date(selectedBooking.check_out_date || selectedBooking.return_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </div>
+                  </div>
+                )}
+                <div className="p-5 bg-foreground/[0.02] rounded-2xl border border-foreground/5 space-y-2">
+                  <Users className="w-4 h-4 text-primary/40" />
+                  <div className="text-[9px] font-black uppercase tracking-widest text-foreground/30">Guests</div>
+                  <div className="font-black text-xs">{selectedBooking._guestCount}</div>
+                </div>
               </div>
+
+              {/* Special requests */}
+              <div className="space-y-3">
+                <div className="text-[9px] font-black uppercase tracking-[0.3em] text-foreground/30">Special Requirements</div>
+                <p className="text-sm font-bold text-foreground/60 leading-relaxed italic border-l-2 border-primary/20 pl-5">
+                  {selectedBooking.specialRequests || selectedBooking.special_requests || "No specific modifications requested."}
+                </p>
+              </div>
+
+              {/* Timestamp */}
+              {(selectedBooking.createdAt || selectedBooking.created_at) && (
+                <div className="pt-6 border-t border-foreground/5 flex items-center justify-between">
+                  <div className="text-[9px] font-bold text-foreground/20 uppercase tracking-widest">
+                    Logged: {new Date(selectedBooking.createdAt || selectedBooking.created_at).toLocaleString()}
+                  </div>
+                  <div className="flex items-center gap-2 px-4 py-2 bg-foreground/5 rounded-full">
+                    <ShieldCheck className="w-3.5 h-3.5 text-primary" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-primary">Verified</span>
+                  </div>
+                </div>
+              )}
+
+              <button onClick={() => setSelectedBooking(null)} className="w-full py-5 bg-foreground text-background rounded-3xl text-xs font-black uppercase tracking-widest hover:bg-primary transition-all">
+                Close Report
+              </button>
             </div>
           </div>
         </div>
