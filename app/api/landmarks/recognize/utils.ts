@@ -38,6 +38,9 @@ export async function getImageEmbedding(bytes: ArrayBuffer): Promise<number[]> {
   );
 
   const embedData = await embedResponse.json();
+  console.log("BGE response:", JSON.stringify(embedData));
+  const embedding = embedData?.result?.data?.[0] ?? embedData?.data?.[0];
+  if (!embedding) throw new Error(`No embedding returned: ${JSON.stringify(embedData)}`);
   return embedData.result.data[0];
 }
 
