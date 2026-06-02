@@ -9,8 +9,8 @@ let envReady = false;
 async function initEnv() {
   if (envReady) return;
 
-  // Using standard require hides this block from the Next.js static build workers
-  const { env } = require("@xenova/transformers");
+  // 1. Changed to dynamic import()
+  const { env } = await import("@xenova/transformers");
 
   // 🚨 FORCE PURE WASM MODE (CRITICAL FIX)
   env.backends = {
@@ -37,7 +37,8 @@ export async function getExtractor() {
   if (!extractor) {
     await initEnv();
 
-    const { pipeline } = require("@xenova/transformers");
+    // 2. Changed to dynamic import()
+    const { pipeline } = await import("@xenova/transformers");
 
     extractor = await pipeline(
       "feature-extraction",
@@ -52,7 +53,8 @@ export async function getExtractor() {
  * Convert image → embedding vector
  */
 export async function getImageEmbedding(buffer: ArrayBuffer): Promise<number[]> {
-  const { RawImage } = require("@xenova/transformers");
+  // 3. Changed to dynamic import()
+  const { RawImage } = await import("@xenova/transformers");
 
   const model = await getExtractor();
 
