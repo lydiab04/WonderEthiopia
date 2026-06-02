@@ -26,11 +26,11 @@ export async function getImageEmbedding(bytes: ArrayBuffer): Promise<number[]> {
   
   // Convert text description to embedding using BGE
   const embedResponse = await fetch(
-    https://api.cloudflare.com/client/v4/accounts/${process.env.CF_ACCOUNT_ID}/ai/run/@cf/baai/bge-large-en-v1.5,
+    `https://api.cloudflare.com/client/v4/accounts/${process.env.CF_ACCOUNT_ID}/ai/run/@cf/baai/bge-large-en-v1.5`,
     {
       method: "POST",
       headers: {
-        Authorization: Bearer ${process.env.CF_API_TOKEN},
+        Authorization: `Bearer ${process.env.CF_API_TOKEN}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ text: data.result.response }),
