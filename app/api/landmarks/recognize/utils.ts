@@ -3,7 +3,7 @@ export async function getImageEmbedding(bytes: ArrayBuffer): Promise<number[]> {
   const base64 = Buffer.from(bytes).toString("base64");
 
   const response = await fetch(
-    https://api.cloudflare.com/client/v4/accounts/${process.env.CF_ACCOUNT_ID}/ai/run/@cf/unum/uform-gen2-qwen-500m,
+    `https://api.cloudflare.com/client/v4/accounts/${process.env.CF_ACCOUNT_ID}/ai/run/@cf/unum/uform-gen2-qwen-500m`,
     {
       method: "POST",
       headers: {
