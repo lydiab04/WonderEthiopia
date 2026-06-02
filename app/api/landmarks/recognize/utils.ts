@@ -21,7 +21,7 @@ export async function getImageEmbedding(bytes: ArrayBuffer): Promise<number[]> {
   const visionData = await visionResponse.json();
   console.log("LLaVA response:", JSON.stringify(visionData)); // ← see the structure
 
-  const description = visionData?.result?.response ?? visionData?.response ?? "";
+  const description = visionData?.result?.description ?? visionData?.description ?? "";
   if (!description) throw new Error("No description from vision model");
 
   // Step 2: Embed the description
