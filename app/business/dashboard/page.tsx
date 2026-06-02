@@ -3138,22 +3138,32 @@ bookingResults.forEach((result, index) => {
                           </div>
                         </div>
 
-                        <div className="space-y-6">
-                          <label className="text-xs font-black uppercase tracking-[0.3em] text-foreground/30 px-3 md:px-4 lg:px-5">Institutional Pricing (ETB)</label>
-                          <div className="relative group">
-                            <input
-                              required
-                              type="number"
-                              value={serviceForm.price || 0}
-                              readOnly={selectedSector === "hotel"}
-                              onChange={e => setServiceForm({ ...serviceForm, price: parseFloat(e.target.value) })}
-                              className={`w-full px-8 py-5 bg-foreground/[0.01] border border-foreground/[0.05] rounded-[24px] font-black text-xl tracking-tighter outline-none transition-all ${selectedSector === "hotel" ? 'cursor-not-allowed opacity-70' : 'focus:bg-white focus:border-primary/20 focus:ring-8 focus:ring-primary/5'}`}
-                            />
-                            <span className="absolute right-8 top-1/2 -translate-y-1/2 text-[9px] font-black text-primary uppercase tracking-[0.3em]">
-                              {selectedSector === "hotel" ? "Calculated (Birr)" : "Official Birr"}
-                            </span>
-                          </div>
-                        </div>
+<div className="space-y-6">
+  <label className="text-xs font-black uppercase tracking-[0.3em] text-foreground/30 px-3 md:px-4 lg:px-5">
+    Institutional Pricing (ETB)
+  </label>
+  <div className="relative group">
+    <input
+      required
+      type="number"
+      min="0" // 1. Prevents the native browser spinner from going negative
+      value={serviceForm.price || 0}
+      readOnly={selectedSector === "hotel"}
+      onChange={e => {
+        // 2. Math.max(0, ...) ensures any typed negative value defaults to 0
+        const val = parseFloat(e.target.value);
+        setServiceForm({ 
+          ...serviceForm, 
+          price: isNaN(val) ? 0 : Math.max(0, val) 
+        });
+      }}
+      className={`w-full px-8 py-5 bg-foreground/[0.01] border border-foreground/[0.05] rounded-[24px] font-black text-xl tracking-tighter outline-none transition-all ${selectedSector === "hotel" ? 'cursor-not-allowed opacity-70' : 'focus:bg-white focus:border-primary/20 focus:ring-8 focus:ring-primary/5'}`}
+    />
+    <span className="absolute right-8 top-1/2 -translate-y-1/2 text-[9px] font-black text-primary uppercase tracking-[0.3em]">
+      {selectedSector === "hotel" ? "Calculated (Birr)" : "Official Birr"}
+    </span>
+  </div>
+</div>
 
 
 
