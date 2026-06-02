@@ -1,32 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Service from "@/models/Service";
+import TourBooking from "@/models/TourBooking";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { businessId: string } }
-) {
+export async function GET() {
   try {
     await dbConnect();
 
-    const tours = await Service.find({
-      businessId: params.businessId,
-    }).lean();
+    const session = await getServerSession(authOptions);
 
-    return NextResponse.json(
-      {
-        success: true,
-        message: "Tours retrieved successfully",
-        data: tours,
-      },
-      { status: 200 }
-    );
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const services = await Service.find({
+      businessId: session.user.id,
+    }).select("_id");
+
+    const serviceIds = services.map((s) => s._id);
+
+    const bookings = await TourBooking.find({
+      tour_id: { $in: serviceIds },
+    })
+      .populate("tour_id")
+      .lean();
+
+    return NextResponse.json({
+      success: true,
+      data: bookings,
+    });
   } catch (error: any) {
     return NextResponse.json(
-      {
-        success: false,
-        message: error.message || "Something went wrong",
-      },
+      { success: false, message: error.message },
       { status: 500 }
     );
   }
