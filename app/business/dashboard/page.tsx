@@ -249,25 +249,18 @@ export default function BusinessDashboardPage() {
 bookingResults.forEach((result, index) => {
   if (result.status === "fulfilled") {
     const data = result.value;
-    
-    // 1. Target data directly if it is an array, or pull from expected registry keys
-    let list = [];
-    if (Array.isArray(data)) {
-      list = data;
-    } else if (data) {
-      list = data.bookings || data.booking || data.data || data.value || [];
-    }
-
-    // Ensure singular objects returned wrapped in an API response get caught as an array
-    if (!Array.isArray(list) && typeof list === 'object' && list !== null) {
-      list = [list];
-    }
-
+    const type = bookingEndpoints[index].type;
+    // 1. Target data directly if it is an array, or pull from expected keys
+    const list = Array.isArray(data) 
+      ? data 
+      : (data.bookings || data.data || data.value || data[`${type}Bookings`] || data[type] || []);
     if (Array.isArray(list)) {
       list.forEach((b: any) => {
+        if (!b || (typeof b === "object" && Object.keys(b).length === 0)) return;
+
         allBookings.push({
           ...b,
-          _bookingType: bookingEndpoints[index].type,
+          _bookingType: type,
         });
       });
     }
