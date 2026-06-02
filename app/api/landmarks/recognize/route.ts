@@ -1,44 +1,12 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Landmark from "@/models/Landmark";
-// import { pipeline, RawImage } from "@xenova/transformers";
-import { getImageEmbedding } from "@/lib/embedding";
-// let extractor: any;
+import { pipeline, RawImage } from "@xenova/transformers";
+import { getImageEmbedding,cosineSimilarity,getExtractor } from "./utils";
 
-// async function getExtractor() {
-//   if (!extractor) {
-//     console.log("Loading CLIP model...");
-//     extractor = await pipeline(
-//       "image-feature-extraction",
-//       "Xenova/clip-vit-base-patch32"
-//     );
-//     console.log("CLIP model loaded");
-//   }
-//   return extractor;
-// }
+let extractor: any;
 
-// async function getImageEmbedding(image: ArrayBuffer): Promise<number[]> {
-//   const ext = await getExtractor();
-//   const blob = new Blob([image]);
-//   const img = await RawImage.fromBlob(blob);
-//   const output = await ext(img, { pooling: "mean", normalize: true });
-//   return Array.from(output.data as Float32Array);
-// }
 
-function cosineSimilarity(a: number[], b: number[]): number {
-  if (a.length !== b.length) {
-    console.error(`Dimension mismatch: query=${a.length}, db=${b.length}`);
-    return 0;
-  }
-  let dot = 0, magA = 0, magB = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    magA += a[i] * a[i];
-    magB += b[i] * b[i];
-  }
-  const denom = Math.sqrt(magA) * Math.sqrt(magB);
-  return denom === 0 ? 0 : dot / denom;
-}
 
 // ── Re-embed all landmarks (call via GET /api/search-by-image/reembed) ────────
 export async function GET(req: Request) {
@@ -48,7 +16,7 @@ export async function GET(req: Request) {
   }
 
   await dbConnect();
-  // const ext = await getExtractor();
+  const ext = await getExtractor();
   const landmarks = await Landmark.find();
   const results = { success: 0, failed: 0, skipped: 0 };
 
@@ -70,9 +38,13 @@ export async function GET(req: Request) {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
       const buffer = await response.arrayBuffer();
-      landmark.embedding = await getImageEmbedding(buffer);
+      const blob = new Blob([buffer]);
+      const img = await RawImage.fromBlob(blob);
+      const output = await ext(img, { pooling: "mean", normalize: true });
 
+      landmark.embedding = Array.from(output.data as Float32Array);
       await landmark.save();
+
       console.log(`✓ ${landmark.name} — dim: ${landmark.embedding.length}`);
       results.success++;
     } catch (e: any) {
@@ -134,5 +106,3 @@ export async function POST(req: Request) {
     );
   }
 }
-
-// export { getImageEmbedding };
