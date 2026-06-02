@@ -33,7 +33,7 @@ export default function DiscoverDestinations() {
         const data = await res.json();
         console.log(data);
         // Use interests array; if empty/missing, set null so we fall back to full list
-        const interests: string[] = data.profile?.interests ?? [];
+        const interests: string[] = data.user?.preferences ?? [];
         setPreferences(interests.length > 0 ? interests : null);
       } catch {
         setPreferences(null); // on error, show full list
