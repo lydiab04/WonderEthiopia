@@ -3,11 +3,11 @@ export async function getImageEmbedding(bytes: ArrayBuffer): Promise<number[]> {
 
   // Step 1: Describe the image with LLaVA
   const visionResponse = await fetch(
-    https://api.cloudflare.com/client/v4/accounts/${process.env.CF_ACCOUNT_ID}/ai/run/@cf/llava-hf/llava-1.5-7b-hf,
+    `https://api.cloudflare.com/client/v4/accounts/${process.env.CF_ACCOUNT_ID}/ai/run/@cf/llava-hf/llava-1.5-7b-hf`,
     {
       method: "POST",
       headers: {
-        Authorization: Bearer ${process.env.CF_API_TOKEN},
+        Authorization: `Bearer ${process.env.CF_API_TOKEN}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -26,11 +26,11 @@ export async function getImageEmbedding(bytes: ArrayBuffer): Promise<number[]> {
 
   // Step 2: Embed the description
   const embedResponse = await fetch(
-    https://api.cloudflare.com/client/v4/accounts/${process.env.CF_ACCOUNT_ID}/ai/run/@cf/baai/bge-large-en-v1.5,
+    `https://api.cloudflare.com/client/v4/accounts/${process.env.CF_ACCOUNT_ID}/ai/run/@cf/baai/bge-large-en-v1.5`,
     {
       method: "POST",
       headers: {
-        Authorization: Bearer ${process.env.CF_API_TOKEN},
+        Authorization: `Bearer ${process.env.CF_API_TOKEN}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ text: [description] }), // ← array format
@@ -41,7 +41,7 @@ export async function getImageEmbedding(bytes: ArrayBuffer): Promise<number[]> {
   console.log("BGE response:", JSON.stringify(embedData)); // ← see the structure
 
   const embedding = embedData?.result?.data?.[0] ?? embedData?.data?.[0];
-  if (!embedding) throw new Error(No embedding returned: ${JSON.stringify(embedData)});
+  if (!embedding) throw new Error(`No embedding returned: ${JSON.stringify(embedData)}`);
 
   return embedding;
 }
