@@ -901,7 +901,7 @@ bookingResults.forEach((result, index) => {
               </div>
 
               <div className="grid grid-cols-1 gap-6">
-                {bookings.length === 0 ? (
+                {bookings?.length === 0 ? (
                   <div className="py-32 flex flex-col items-center justify-center bg-foreground/[0.02] rounded-[60px] border border-dashed border-foreground/5">
                     <Calendar className="w-12 h-12 text-foreground/10 mb-6" />
                     <p className="text-sm font-black uppercase tracking-widest text-foreground/20 italic">No mission records detected in registry axis.</p>
