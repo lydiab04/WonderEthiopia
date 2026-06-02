@@ -1,87 +1,39 @@
-export const runtime = "nodejs";
+// app/api/landmarks/recognize/utils.ts
+import { pipeline, RawImage } from "@xenova/transformers";
 
-let extractor: any = null;
-let envReady = false;
+let extractor: any;
 
-/**
- * Initialize environment BEFORE pipeline loads
- */
-async function initEnv() {
-  if (envReady) return;
-
-  // 1. Changed to dynamic import()
-  const { env } = await import("@xenova/transformers");
-
-  // 🚨 FORCE PURE WASM MODE (CRITICAL FIX)
-  env.backends = {
-    onnx: {
-      wasm: {
-        numThreads: 1,
-      },
-    },
-  };
-
-  env.allowLocalModels = false;
-  env.useBrowserCache = false;
-
-  // 🚨 VERCEL FIX: Force cache into the only writable directory allocated to serverless functions
-  env.cacheDir = "/tmp/transformers-cache";
-
-  envReady = true;
-}
-
-/**
- * Load model lazily
- */
 export async function getExtractor() {
   if (!extractor) {
-    await initEnv();
-
-    // 2. Changed to dynamic import()
-    const { pipeline } = await import("@xenova/transformers");
-
+    console.log("Loading CLIP model...");
     extractor = await pipeline(
-      "feature-extraction",
-      "Xenova/all-MiniLM-L6-v2"
+      "image-feature-extraction",
+      "Xenova/clip-vit-base-patch32"
     );
+    console.log("CLIP model loaded");
   }
-
   return extractor;
 }
 
-/**
- * Convert image → embedding vector
- */
-export async function getImageEmbedding(buffer: ArrayBuffer): Promise<number[]> {
-  // 3. Changed to dynamic import()
-  const { RawImage } = await import("@xenova/transformers");
-
-  const model = await getExtractor();
-
-  const blob = new Blob([buffer]);
-  const image = await RawImage.fromBlob(blob);
-
-  const output = await model(image, {
-    pooling: "mean",
-    normalize: true,
-  });
-
+export async function getImageEmbedding(image: ArrayBuffer): Promise<number[]> {
+  const ext = await getExtractor();
+  const blob = new Blob([image]);
+  const img = await RawImage.fromBlob(blob);
+  const output = await ext(img, { pooling: "mean", normalize: true });
   return Array.from(output.data as Float32Array);
 }
 
-/**
- * Cosine similarity
- */
 export function cosineSimilarity(a: number[], b: number[]): number {
-  let dot = 0;
-  let magA = 0;
-  let magB = 0;
-
+  if (a.length !== b.length) {
+    console.error(Dimension mismatch: query=${a.length}, db=${b.length});
+    return 0;
+  }
+  let dot = 0, magA = 0, magB = 0;
   for (let i = 0; i < a.length; i++) {
     dot += a[i] * b[i];
     magA += a[i] * a[i];
     magB += b[i] * b[i];
   }
-
-  return dot / (Math.sqrt(magA) * Math.sqrt(magB));
+  const denom = Math.sqrt(magA) * Math.sqrt(magB);
+  return denom === 0 ? 0 : dot / denom;
 }
