@@ -1,7 +1,15 @@
 import { env, pipeline, RawImage } from "@xenova/transformers";
 
-// FORCE VERCEL COMPATIBILITY BEFORE ANY PIPELINES RUN
-env.backends.setPriority(['wasm', 'cpu']);
+// FORCE VERCEL COMPATIBILITY USING DIRECT PROPERTY FLAGS
+env.backends.onnx.wasm.numThreads = 1;
+
+// Disable the native C++ CPU/GPU binaries that Vercel blocks (.so files)
+env.backends.onnx.cpu.disabled = true; 
+if ((env.backends.onnx as any).gpu) {
+  (env.backends.onnx as any).gpu.disabled = true;
+}
+
+// Disable local file caching so it reads directly from cloud storage inside serverless
 env.allowLocalModels = false;
 
 let extractor: any = null;
