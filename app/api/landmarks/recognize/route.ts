@@ -3,14 +3,14 @@ import dbConnect from "@/lib/mongodb";
 import Landmark from "@/models/Landmark";
 import { cosineSimilarity } from "./utils";
 
-// --------------------------------------------------
-// 🚨 IMPORTANT: NO TOP-LEVEL transformers import
-// --------------------------------------------------
+export const runtime = "nodejs";
+export const maxDuration = 60; 
+export const memory = 1024;    
 
-// lazy ML loader (prevents Vercel crash)
+// lazy ML loader utilizing runtime require
 async function getML() {
-  const { getImageEmbedding, getExtractor } = await import("./utils");
-  const { RawImage } = await import("@xenova/transformers");
+  const { getImageEmbedding, getExtractor } = require("./utils");
+  const { RawImage } = require("@xenova/transformers");
 
   return { getImageEmbedding, getExtractor, RawImage };
 }
@@ -31,7 +31,6 @@ export async function GET(req: Request) {
   const ext = await getExtractor();
 
   const landmarks = await Landmark.find();
-
   const results = { success: 0, failed: 0, skipped: 0 };
 
   for (const landmark of landmarks) {
@@ -46,11 +45,10 @@ export async function GET(req: Request) {
       const response = await fetch(imageUrl);
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        throw new Error(HTTP ${response.status});
       }
 
       const buffer = await response.arrayBuffer();
-
       const blob = new Blob([buffer]);
       const img = await RawImage.fromBlob(blob);
 
@@ -62,10 +60,10 @@ export async function GET(req: Request) {
       landmark.embedding = Array.from(output.data as Float32Array);
       await landmark.save();
 
-      console.log(`✓ ${landmark.name}`);
+      console.log(✓ ${landmark.name});
       results.success++;
     } catch (e: any) {
-      console.error(`✗ ${landmark.name}:`, e.message);
+      console.error(✗ ${landmark.name}:, e.message);
       results.failed++;
     }
   }
@@ -90,7 +88,7 @@ export async function POST(req: Request) {
       );
     }
 
-    console.log(`Processing: ${file.name}`);
+    console.log(Processing: ${file.name});
 
     const { getImageEmbedding } = await getML();
 
