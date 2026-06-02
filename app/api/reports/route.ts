@@ -5,13 +5,20 @@ import dbConnect from "@/lib/mongodb";
 import Report from "@/models/Report";
 import AppNotification from "@/models/Notification";
 import Business from "@/models/Business";
-
+import mongoose from "mongoose";
 // POST - Create a new report (Tourist)
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (!session.user.id) {
+      return NextResponse.json(
+        { error: "Session user ID is missing. Please check your NextAuth callbacks configuration." }, 
+        { status: 400 }
+      );
     }
 
     await dbConnect();
@@ -21,6 +28,12 @@ export async function POST(request: Request) {
     if (!businessId || !reason || !description) {
       return NextResponse.json(
         { error: "businessId, reason, and description are required" },
+        { status: 400 }
+      );
+    }
+    if (!mongoose.Types.ObjectId.isValid(businessId)) {
+      return NextResponse.json(
+        { error: "Provided businessId is not a valid MongoDB ObjectId format" },
         { status: 400 }
       );
     }
@@ -56,7 +69,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, report }, { status: 201 });
   } catch (error: any) {
     console.error("Error creating report:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    // Returns the exact error message in the API response payload
+    return NextResponse.json(
+      { error: "Internal server error", details: error?.message || error }, 
+      { status: 500 }
+    );
   }
 }
 
@@ -64,7 +81,7 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || !["tourism_admin", "super_admin", "business_owner"].includes(session.user.role)) {
+    if (!session || !session.user || !["tourism_admin", "super_admin", "business_owner"].includes(session.user.role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
