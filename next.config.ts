@@ -1,24 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  turbopack: {},
-  serverExternalPackages: [
-    "@xenova/transformers",
-    "mongoose",
-  ],
-
-  webpack: (config, { isServer }) => {
-    if (isServer) {
-      config.externals = [
-        ...(config.externals || []),
-        "onnxruntime-node",
-        "sharp",
-      ];
-    }
-
-    return config;
-  },
-
+  serverExternalPackages: ["mongoose"],
   async headers() {
     return [
       {
@@ -32,38 +15,39 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-
   images: {
+    qualities: [100, 75],
     remotePatterns: [
       {
         protocol: "https",
         hostname: "share.google",
+        pathname: "",
       },
       {
         protocol: "https",
         hostname: "images.unsplash.com",
+        pathname: "",
       },
       {
-        protocol: "https",
-        hostname: "visitethiopia.et",
-      },
-      {
-        protocol: "https",
-        hostname: "whc.unesco.org",
-      },
-      {
+        protocol:"https",
+        hostname:"visitethiopia.et",
+        pathname:"/"
+      },{
+        protocol:"https",
+        hostname:"whc.unesco.org",
+        pathname:"/"
+      },{
         protocol: "https",
         hostname: "res.cloudinary.com",
-        pathname: "/**",
-      },
+      }
     ],
   },
 
   async rewrites() {
     return [
       {
-        source: "/unesco-assets/:path*",
-        destination: "https://whc.unesco.org/:path*",
+        source: '/unesco-assets/:path*',
+        destination: 'https://whc.unesco.org/:path*',
       },
     ];
   },
