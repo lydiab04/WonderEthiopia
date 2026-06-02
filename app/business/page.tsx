@@ -68,6 +68,12 @@ export default function BusinessPortalPage() {
       return;
     }
 
+    if (formData.contactPhone.replace(/[^0-9]/g, "").length < 9) {
+  setError("Phone number must contain at least 9 digits.");
+  setLoading(false);
+  return;
+}
+
     try {
       const formDataToSend = new FormData();
       formDataToSend.append("applicantName", formData.applicantName);
@@ -196,7 +202,7 @@ export default function BusinessPortalPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <label className="text-sm font-bold text-foreground/30 uppercase tracking-widest">Applicant Name</label>
-                      <input name="applicantName" type="text" value={formData.applicantName} onChange={handleChange} required className={inputClass} placeholder="Your full name" />
+                      <input name="applicantName" type="text" value={formData.applicantName} onChange={e => setFormData({ ...formData, applicantName: e.target.value.replace(/[^a-zA-Z\s]/g, "") })} required className={inputClass} placeholder="Your full name" />
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-bold text-foreground/30 uppercase tracking-widest">Business Name</label>
@@ -250,8 +256,16 @@ export default function BusinessPortalPage() {
                     <h3 className="text-sm font-black uppercase tracking-widest">Global Location</h3>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <input name="region" type="text" value={formData.region} onChange={handleChange} required className={inputClass} placeholder="Region" />
-                    <input name="city" type="text" value={formData.city} onChange={handleChange} required className={inputClass} placeholder="City / Town" />
+                   <select name="region" value={formData.region} onChange={handleChange} required className={inputClass}>
+                    <option value="">Select Region</option>
+                    {[
+                      "Addis Ababa", "Amhara", "Oromia", "Tigray", "Afar",
+                      "Sidama", "SNNPR", "Gambela", "Benishangul-Gumuz", "Harari", "Somali",
+                    ].map((r) => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
+                    <input name="city" type="text" value={formData.city} onChange={e => setFormData({ ...formData, city: e.target.value.replace(/[^a-zA-Z\s]/g, "") })} required className={inputClass} placeholder="City / Town" />
                     <input name="address" type="text" value={formData.address} onChange={handleChange} required className={inputClass} placeholder="Full Address" />
                   </div>
                 </div>
@@ -291,7 +305,10 @@ export default function BusinessPortalPage() {
                       <div className="space-y-6 pt-6 border-t border-foreground/[0.03]">
                         <h4 className="text-sm font-black text-primary uppercase tracking-widest">Tour Operator Details</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <input name="languages" type="text" placeholder="Supported Languages" onChange={handleIndustryChange} required className={inputClass} />
+                          <input name="languages" type="text" placeholder="Supported Languages" onChange={e => {
+                            const letters = e.target.value.replace(/[^a-zA-Z\s,]/g, "");
+                            setFormData({ ...formData, industryDetails: { ...formData.industryDetails, languages: letters } });
+                          }}required className={inputClass} />
                           <input name="specialization" type="text" placeholder="Expedition Focus" onChange={handleIndustryChange} required className={inputClass} />
                           <div className="md:col-span-2 space-y-2">
                             <label className="text-sm font-bold tracking-widest uppercase text-foreground/30">Tour Certificate</label>
@@ -339,7 +356,11 @@ export default function BusinessPortalPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="relative group">
                        <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-focus-within:text-primary transition-colors" />
-                       <input name="contactPhone" type="text" value={formData.contactPhone} onChange={handleChange} required className="w-full pl-14 pr-5 py-4 bg-foreground/[0.02] border border-foreground/[0.05] rounded-2xl" placeholder="+251 ..." />
+                       <input name="contactPhone" type="text" value={formData.contactPhone} 
+                         onChange={(e) => {
+                          const sanitized = e.target.value.replace(/[^0-9+]/g, "").slice(0, 15);
+                          setFormData({ ...formData, contactPhone: sanitized });
+                        }}required className="w-full pl-14 pr-5 py-4 bg-foreground/[0.02] border border-foreground/[0.05] rounded-2xl" placeholder="+251 ..." />
                     </div>
                     <div className="relative group">
                        <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-focus-within:text-primary transition-colors" />

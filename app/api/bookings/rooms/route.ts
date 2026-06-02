@@ -3,6 +3,8 @@ import dbConnect from "@/lib/mongodb";
 import { registerPayment } from "../../payments/route";
 import RoomBooking from "@/models/RoomBooking";
 import Service from "@/models/Service";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export async function POST(request: Request) {
     try {
@@ -16,10 +18,25 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "All fields are required",data:body }, { status: 400 });
         }
 
+        const existingBooking = await RoomBooking.findOne({
+  user_id,
+  room_id,
+  status: { $nin: ["cancelled", "rejected"] }, // allow rebooking if previously cancelled
+});
+
+if (existingBooking) {
+  return NextResponse.json(
+    { error: "You already have an active booking for this room." },
+    { status: 400 }
+  );
+}
+
+
         const service = await Service.findById(room_id);
                 if (!service || (service.availability?.quantity ?? 0) <= 0) {
                     return NextResponse.json({ error: "This car is currently out of stock/unavailable" }, { status: 400 });
                 }
+        
 
         // 2. Initiate Payment
         let payment;
@@ -34,16 +51,7 @@ export async function POST(request: Request) {
         } catch (paymentError: any) {
     console.error("Payment registration failed:", paymentError);
 
-    const updatedRoom = await Service.findOneAndUpdate(
-                { _id: room_id, "availability.quantity": { $gt: 0 } }, 
-                { $inc: { "availability.quantity": -1 } },
-                { new: true } 
-            );
-    
-            if (!updatedRoom) {
-              
-                throw new Error("Room inventory update failed. Room might be out of stock.");
-            }
+   
     
     return NextResponse.json({ 
         success: false, 
@@ -53,6 +61,16 @@ export async function POST(request: Request) {
     }, { status: 502 });
 }
 
+        const updatedRoom = await Service.findOneAndUpdate(
+    { _id: room_id, "availability.quantity": { $gt: 0 } },
+    { $inc: { "availability.quantity": -1 } },
+    { new: true }
+);
+
+if (!updatedRoom) {
+    throw new Error("Room inventory update failed. Room might be out of stock.");
+}
+        
         // 3. Extract ID safely
         // Ensure you check if payment exists before accessing ._id
         const payment_id = payment?._id || payment?.id; 
@@ -90,7 +108,12 @@ export async function POST(request: Request) {
 
 export async function GET() {
     try {
-        const result = await RoomBooking.find().lean();
+        const session = await getServerSession(authOptions);
+          console.log("Session:", JSON.stringify(session)); 
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const result = await RoomBooking.find({ user_id: session.user.id }).lean();
+        
         return NextResponse.json(
       {
         message: "Bookings retrieved successfully",

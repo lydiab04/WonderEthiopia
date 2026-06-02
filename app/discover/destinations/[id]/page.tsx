@@ -157,8 +157,8 @@ export default function DestinationDetail() {
     );
   }
 
-  const latitude=destination.coordinates.latitude;
-  const longitude=destination.coordinates.longitude;
+const latitude = destination.coordinates?.latitude ?? 9.0222;   
+const longitude = destination.coordinates?.longitude ?? 38.7468;
 
 
   return (
@@ -214,7 +214,11 @@ export default function DestinationDetail() {
             <p className="text-lg text-foreground/70 leading-relaxed whitespace-pre-line">
               {destination.description}
             </p>
-            <div><Map position={[latitude,longitude]} zoom={13}/></div>
+          {destination.coordinates?.latitude && destination.coordinates?.longitude &&(
+  <div>
+    <Map position={[latitude, longitude]} zoom={13} />
+  </div>
+)}
           </div>
 
           {/* Reviews List */}

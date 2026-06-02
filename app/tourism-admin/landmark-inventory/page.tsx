@@ -450,9 +450,20 @@ export default function LandmarkInventory() {
                   <input required type="text" name="city" value={formData.city} onChange={handleInputChange} className="w-full px-4 py-3 text-sm rounded-xl bg-foreground/[0.02] border border-foreground/10 text-foreground focus:outline-none focus:border-primary" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground/70">Region *</label>
-                  <input required type="text" name="region" value={formData.region} onChange={handleInputChange} className="w-full px-4 py-3 text-sm rounded-xl bg-foreground/[0.02] border border-foreground/10 text-foreground focus:outline-none focus:border-primary" />
-                </div>
+                <label className="text-xs font-semibold text-foreground/70">Region *</label>
+                <select
+                  required
+                  name="region"
+                  value={formData.region}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 text-sm rounded-xl bg-background border border-foreground/10 text-foreground focus:outline-none focus:border-primary"
+                >
+                  <option value="">Select Region</option>
+                  {["Addis Ababa","Amhara","Oromia","Tigray","Afar","Sidama","SNNPR","Gambela","Benishangul-Gumuz","Harari","Somali"].map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
               </div>
 
               {/* Establishment & Coordinates */}

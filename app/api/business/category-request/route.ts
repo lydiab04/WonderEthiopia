@@ -53,6 +53,8 @@ export async function POST(req: Request) {
           folder: "category-requests",
           resource_type: file.type.startsWith("image/") ? "image" : "raw",
           public_id: `req_${Date.now()}_${file.name.replace(/\s+/g, "_")}`,
+          access_mode: "public",
+          type: "upload",
         });
 
         industryFilesMetadata.push({
@@ -66,14 +68,14 @@ export async function POST(req: Request) {
     // Format industry details and files for the notification
     let detailsString = "";
     if (Object.keys(industryDetails).length > 0) {
-      detailsString = "\n\n### Supplemental Industry Data:\n" + 
+      detailsString = "\n\n### Supplemental Industry Data:\n" +
         Object.entries(industryDetails)
           .map(([key, val]) => `- **${key.charAt(0).toUpperCase() + key.slice(1)}**: ${val}`)
           .join("\n");
     }
 
     if (industryFilesMetadata.length > 0) {
-      detailsString += "\n\n### Supporting Documents:\n" + 
+      detailsString += "\n\n### Supporting Documents:\n" +
         industryFilesMetadata
           .map(doc => `- [${doc.fileName}](${doc.url}) (${doc.fieldName})`)
           .join("\n");
@@ -170,12 +172,12 @@ export async function PATCH(req: Request) {
       }
 
       if (!action) {
-         try {
-           const { pusherServer } = await import("@/lib/pusher");
-           await pusherServer.trigger(`admin-notifications-tourism_admin`, "new-internal-message", { senderName: session.user.name, message: "New message in Expansion Request" });
-           await pusherServer.trigger(`admin-notifications-super_admin`, "new-internal-message", { senderName: session.user.name, message: "New message in Expansion Request" });
-         } catch (e) {}
-         return NextResponse.json({ success: true });
+        try {
+          const { pusherServer } = await import("@/lib/pusher");
+          await pusherServer.trigger(`admin-notifications-tourism_admin`, "new-internal-message", { senderName: session.user.name, message: "New message in Expansion Request" });
+          await pusherServer.trigger(`admin-notifications-super_admin`, "new-internal-message", { senderName: session.user.name, message: "New message in Expansion Request" });
+        } catch (e) { }
+        return NextResponse.json({ success: true });
       }
     }
 

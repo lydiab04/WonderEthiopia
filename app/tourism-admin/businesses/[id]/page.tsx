@@ -6,18 +6,18 @@ import Link from "next/link";
 import { toast } from "react-toastify";
 import {
   Building2, MapPin, CheckCircle2, XCircle, ArrowLeft, Clock, FileText,
-  AlertCircle, ShieldCheck, Phone, History, Info, Loader2, Mail, User, Calendar, MessageSquare
+  AlertCircle, ShieldCheck, Phone, History, Info, Loader2, Mail, User, Calendar, MessageSquare, X
 } from "lucide-react";
 import ChatDrawer from "@/components/admin/ChatDrawer";
 import BusinessChat from "@/components/admin/BusinessChat";
 
 const statusConfig: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  pending:              { label: "Pending Review",           color: "text-amber-600",   bg: "bg-amber-50",   border: "border-amber-100" },
-  recommended_approve:  { label: "Approval Recommended",     color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-100" },
-  recommended_reject:   { label: "Rejection Recommended",    color: "text-rose-600",    bg: "bg-rose-50",    border: "border-rose-100" },
-  approved:             { label: "Live / Approved",           color: "text-primary",     bg: "bg-primary/5",  border: "border-primary/10" },
-  rejected:             { label: "Denied",                    color: "text-red-600",     bg: "bg-red-50",     border: "border-red-100" },
-  suspended:            { label: "Suspended",                 color: "text-amber-700",   bg: "bg-amber-100",  border: "border-amber-200" },
+  pending: { label: "Pending Review", color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-100" },
+  recommended_approve: { label: "Approval Recommended", color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-100" },
+  recommended_reject: { label: "Rejection Recommended", color: "text-rose-600", bg: "bg-rose-50", border: "border-rose-100" },
+  approved: { label: "Live / Approved", color: "text-primary", bg: "bg-primary/5", border: "border-primary/10" },
+  rejected: { label: "Denied", color: "text-red-600", bg: "bg-red-50", border: "border-red-100" },
+  suspended: { label: "Suspended", color: "text-amber-700", bg: "bg-amber-100", border: "border-amber-200" },
 };
 
 const getAuditLabel = (n: any): string => {
@@ -34,12 +34,12 @@ const getAuditLabel = (n: any): string => {
     if (n.title.includes("Registration")) return "Registration";
   }
   const fallback: Record<string, string> = {
-    business_registration:  "Registration",
-    business_recommended:   "Recommendation",
+    business_registration: "Registration",
+    business_recommended: "Recommendation",
     business_status_update: "Status Change",
-    category_request:       "Domain Expansion",
-    report_filed:           "Report",
-    internal_chat:          "Internal Message",
+    category_request: "Domain Expansion",
+    report_filed: "Report",
+    internal_chat: "Internal Message",
   };
   return fallback[n.type] || n.type;
 };
@@ -152,7 +152,10 @@ export default function TourismAdminBusinessDetailPage() {
       date: new Date(n.createdAt), title: n.title, documentUrl: null,
     })),
   ].sort((a, b) => b.date.getTime() - a.date.getTime());
-
+  const getViewerUrl = (url: string, fileName: string) => {
+    // Route through our proxy which streams the file inline with proper headers
+    return `/api/proxy-document?url=${encodeURIComponent(url)}&fileName=${encodeURIComponent(fileName || "")}`;
+  };
   return (
     <div className="bg-background text-foreground font-sans min-h-screen">
       <main className="max-w-6xl mx-auto px-3 md:px-4 lg:px-5 py-10 lg:py-20">
@@ -198,7 +201,7 @@ export default function TourismAdminBusinessDetailPage() {
         <div className="flex gap-3 mb-10">
           {[
             { id: "overview", label: "Business Overview", icon: <Info className="w-4 h-4" /> },
-            { id: "history",  label: `Audit History (${auditItems.length})`, icon: <History className="w-4 h-4" /> },
+            { id: "history", label: `Audit History (${auditItems.length})`, icon: <History className="w-4 h-4" /> },
           ].map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id as any)}
               className={`px-10 py-5 rounded-[28px] text-[11px] font-black uppercase tracking-[0.2em] flex items-center gap-3 transition-all ${activeTab === tab.id ? "bg-foreground text-background shadow-xl" : "bg-white border border-foreground/5 text-foreground/30 hover:text-primary hover:border-primary/20"}`}>
@@ -216,12 +219,12 @@ export default function TourismAdminBusinessDetailPage() {
                 <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-primary mb-10">Registry Identity</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                   {[
-                    { label: "Permit Number",  value: business.permitNumber, icon: <FileText className="w-5 h-5" /> },
+                    { label: "Permit Number", value: business.permitNumber, icon: <FileText className="w-5 h-5" /> },
                     { label: "Applicant Name", value: business.applicantName, icon: <User className="w-5 h-5" /> },
                     { label: "Official Email", value: business.applicantEmail || business.ownerId?.email, icon: <Mail className="w-5 h-5" /> },
-                    { label: "Primary Phone",  value: business.contactPhone || "Not provided", icon: <Phone className="w-5 h-5" /> },
-                    { label: "Contact Email",  value: business.contactEmail || "Not provided", icon: <Mail className="w-5 h-5" /> },
-                    { label: "Entry Date",     value: new Date(business.createdAt).toLocaleDateString(), icon: <Calendar className="w-5 h-5" /> },
+                    { label: "Primary Phone", value: business.contactPhone || "Not provided", icon: <Phone className="w-5 h-5" /> },
+                    { label: "Contact Email", value: business.contactEmail || "Not provided", icon: <Mail className="w-5 h-5" /> },
+                    { label: "Entry Date", value: new Date(business.createdAt).toLocaleDateString(), icon: <Calendar className="w-5 h-5" /> },
                   ].map((item, i) => (
                     <div key={i} className="flex flex-col gap-3 p-6 rounded-[28px] bg-foreground/[0.01] border border-foreground/[0.03]">
                       <div className="flex items-center gap-2 text-primary/40">{item.icon}
@@ -255,7 +258,7 @@ export default function TourismAdminBusinessDetailPage() {
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                             {relevantKeys.map((key) => (
                               <div key={key}>
-                                <span className="text-[9px] font-black uppercase tracking-widest text-primary/40 block mb-2">{key.replace(/([A-Z])/g,' $1')}</span>
+                                <span className="text-[9px] font-black uppercase tracking-widest text-primary/40 block mb-2">{key.replace(/([A-Z])/g, ' $1')}</span>
                                 <p className="text-[14px] font-bold text-foreground/70">{String(industryDetails[key])}</p>
                               </div>
                             ))}
@@ -272,7 +275,7 @@ export default function TourismAdminBusinessDetailPage() {
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                           {business.industryDetails.documents.map((v: any, idx: number) => (
-                            <a key={idx} href={v.url} target="_blank" rel="noopener noreferrer"
+                            <a key={idx} href={getViewerUrl(v.url, v.fileName)} target="_blank" rel="noopener noreferrer"
                               className="flex items-center gap-4 p-5 rounded-[28px] bg-foreground/[0.01] border border-foreground/[0.05] hover:border-primary/20 hover:shadow-xl transition-all group/doc">
                               <div className="w-12 h-12 rounded-2xl bg-primary/5 flex items-center justify-center text-primary group-hover/doc:bg-primary group-hover/doc:text-white transition-all shrink-0">
                                 <FileText className="w-6 h-6" />
@@ -353,11 +356,15 @@ export default function TourismAdminBusinessDetailPage() {
                                     {linkParts.length > 0 && (
                                       <div className="flex flex-wrap gap-3 pt-2">
                                         {linkParts.map((s, i) => (
-                                          <a key={i} href={s.href} target="_blank" rel="noopener noreferrer"
-                                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-foreground/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary hover:text-white hover:border-primary transition-all shadow-sm group/doc">
-                                            <FileText className="w-3.5 h-3.5" /> {s.content}
-                                          </a>
-                                        ))}
+                                        <a key={i}
+                                          href={s.href?.startsWith("https://res.cloudinary.com")
+                                           ? `/api/proxy-document?url=${encodeURIComponent(s.href)}&fileName=${encodeURIComponent(s.content)}`
+                                            : s.href}
+                                          target="_blank" rel="noopener noreferrer"
+                                          className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-foreground/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary hover:text-white hover:border-primary transition-all shadow-sm group/doc">
+                                          <FileText className="w-3.5 h-3.5" /> {s.content}
+                                        </a>
+                                      ))}
                                       </div>
                                     )}
                                   </>
