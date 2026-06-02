@@ -16,6 +16,7 @@ export async function initializePayment(
     txRef: string 
 ) {
     const paymentKey = process.env.CHAPA_KEY;
+    console.log("KEY PREFIX:", process.env.CHAPA_KEY?.slice(0, 15));
     
     const payload = {
         amount: paymentData.amount,
