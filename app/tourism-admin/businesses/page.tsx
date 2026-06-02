@@ -370,7 +370,7 @@ export default function TourismAdminBusinessesPage() {
                                         const match = line.match(/- \[([^\]]+)\]\(([^)]+)\) \(([^)]+)\)/);
                                         if (match) {
                                           return (
-                                           <a key={i}href={`/api/proxy?url=${encodeURIComponent(match[2])}`}
+                                           <a key={i}href={`/api/proxy-document?url=${encodeURIComponent(match[2])}`}
                                               target="_blank"
                                               rel="noopener noreferrer"
                                               className="flex items-center gap-4 p-5 rounded-[28px] bg-white border border-foreground/[0.05] hover:border-primary/20 hover:shadow-xl transition-all group/doc"
