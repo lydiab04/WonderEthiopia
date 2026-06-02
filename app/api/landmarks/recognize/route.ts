@@ -4,16 +4,11 @@ import Landmark from "@/models/Landmark";
 import { cosineSimilarity } from "./utils";
 
 export const runtime = "nodejs";
-export const maxDuration = 60; 
-export const memory = 1024;    
+export const maxDuration = 60; // Max allowed for Vercel Hobby (15s) or Pro (300s)
 
-// lazy ML loader utilizing runtime require
 // lazy ML loader utilizing runtime dynamic imports
 async function getML() {
-  // 1. Change local utils import to dynamic import
   const { getImageEmbedding, getExtractor } = await import("./utils");
-  
-  // 2. Change transformers import to dynamic import
   const { RawImage } = await import("@xenova/transformers");
 
   return { getImageEmbedding, getExtractor, RawImage };
