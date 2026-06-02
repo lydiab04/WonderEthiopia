@@ -205,6 +205,7 @@ export default function BusinessDashboardPage() {
     }
   };
 
+  
   const fetchData = async () => {
     if (status !== "authenticated" || session?.user?.role !== "business_owner") return;
 
@@ -232,6 +233,8 @@ export default function BusinessDashboardPage() {
         setProfileForm(bizData.business);
       }
       if (svcData.services) setServices(svcData.services);
+      
+      // Updated dynamic bookings fetch routing logic
       const bookingEndpoints = [
         { url: "/api/bookings/rooms/byBusinessId", type: "room" },
         { url: "/api/bookings/cars/byBusinessId", type: "car" },
@@ -240,32 +243,34 @@ export default function BusinessDashboardPage() {
       ];
 
       const bookingResults = await Promise.allSettled(
-        bookingEndpoints.map(({ url }) => fetch(url).then(r => r.json()))
+        bookingEndpoints.map(({ url }) => fetch(url).then((r) => r.json()))
       );
+      
       console.log("Booking Results:", bookingResults);
       const allBookings: any[] = [];
-      // Replace the internal part of your bookingResults.forEach loop with this:
-// Replace the internal part of your bookingResults.forEach loop with this:
-bookingResults.forEach((result, index) => {
-  if (result.status === "fulfilled") {
-    const data = result.value;
-    const type = bookingEndpoints[index].type;
-    // 1. Target data directly if it is an array, or pull from expected keys
-    const list = Array.isArray(data) 
-      ? data 
-      : (data.bookings || data.data || data.value || data[`${type}Bookings`] || data[type] || []);
-    if (Array.isArray(list)) {
-      list.forEach((b: any) => {
-        if (!b || (typeof b === "object" && Object.keys(b).length === 0)) return;
 
-        allBookings.push({
-          ...b,
-          _bookingType: type,
-        });
+      bookingResults.forEach((result, index) => {
+        if (result.status === "fulfilled") {
+          const data = result.value;
+          const type = bookingEndpoints[index].type;
+
+          // Extracting data safely from your { success: true, data: [...] } structure
+          const list = Array.isArray(data) 
+            ? data 
+            : (data.data || data.bookings || []);
+
+          if (Array.isArray(list)) {
+            list.forEach((b: any) => {
+              if (!b || (typeof b === "object" && Object.keys(b).length === 0)) return;
+              allBookings.push({
+                ...b,
+                _bookingType: type,
+              });
+            });
+          }
+        }
       });
-    }
-  }
-});
+
       allBookings.sort((a, b) =>
         new Date(b.createdAt || b.pick_up_date || b.check_in_date || 0).getTime() -
         new Date(a.createdAt || a.pick_up_date || a.check_in_date || 0).getTime()
@@ -285,7 +290,7 @@ bookingResults.forEach((result, index) => {
     } else if (status === "unauthenticated") {
       setLoading(false);
     }
-  }, [status, session]);
+  }, [status, session, business?._id]);
 
   const handleToggleActive = async () => {
     if (business?.status === "suspended" || business?.status === "rejected") {
@@ -882,130 +887,177 @@ bookingResults.forEach((result, index) => {
               </div>
             </div>
           ) : activeTab === "bookings" ? (
-            <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 bg-surface p-10 rounded-[50px] border border-foreground/[0.03] shadow-xl">
-                <div>
-                  <h2 className="text-4xl font-black tracking-tightest mb-2 uppercase">Mission <span className="text-primary italic">Registry.</span></h2>
-                  <p className="text-xs font-bold text-foreground/30 uppercase tracking-[0.3em]">Real-time traveler intake synchronization</p>
+  <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    {/* Registry Metric Overview Header */}
+    <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 bg-surface p-10 rounded-[50px] border border-foreground/[0.03] shadow-xl">
+      <div>
+        <h2 className="text-4xl font-black tracking-tightest mb-2 uppercase">
+          Mission <span className="text-primary italic">Registry.</span>
+        </h2>
+        <p className="text-xs font-bold text-foreground/30 uppercase tracking-[0.3em]">
+          Real-time traveler intake synchronization
+        </p>
+      </div>
+      <div className="flex gap-4">
+        <div className="px-8 py-4 bg-primary/5 rounded-3xl border border-primary/10 text-center">
+          <div className="text-[9px] font-black uppercase tracking-widest text-primary mb-1">
+            Active Reservations
+          </div>
+          <div className="text-2xl font-black">{bookings.length}</div>
+        </div>
+        <div className="px-8 py-4 bg-foreground/5 rounded-3xl border border-foreground/10 text-center text-balance">
+          <div className="text-[9px] font-black uppercase tracking-widest text-foreground/30 mb-1">
+            Aggregate Yield
+          </div>
+          <div className="text-2xl font-black text-emerald-500">
+            ETB {bookings.reduce((acc, b) => acc + (b.total_price || b.totalPrice || 0), 0).toLocaleString()}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {/* Bookings Display Stack */}
+    <div className="grid grid-cols-1 gap-6">
+      {bookings?.length === 0 ? (
+        <div className="py-32 flex flex-col items-center justify-center bg-foreground/[0.02] rounded-[60px] border border-dashed border-foreground/5">
+          <Calendar className="w-12 h-12 text-foreground/10 mb-6" />
+          <p className="text-sm font-black uppercase tracking-widest text-foreground/20 italic">
+            No mission records detected in registry axis.
+          </p>
+        </div>
+      ) : (
+        bookings.map((booking) => {
+          // Normalizing various classifications across distinct data models
+          const type = booking._bookingType || "room";
+          const typeIcons: Record<string, string> = { room: "🏨", car: "🚗", tour: "🧭", event: "🎟" };
+          const typeLabels: Record<string, string> = { room: "Room", car: "Car Rental", tour: "Tour", event: "Event" };
+
+          // Fallbacks for service names across dynamic references
+          const serviceName =
+            booking.serviceId?.name ||
+            booking.roomId?.name ||
+            booking.carId?.name ||
+            booking.tourId?.name ||
+            booking.eventId?.name ||
+            booking.car_id?.name ||
+            booking.room_id?.name ||
+            booking.tour_id?.name ||
+            booking.event_id?.name ||
+            "Unidentified Service";
+
+          // Temporal normalization boundaries
+          const startDate =
+            booking.startDate ||
+            booking.check_in_date ||
+            booking.pick_up_date ||
+            booking.event_date ||
+            null;
+
+          const guestCount =
+            booking.guests ??
+            booking.number_of_guests ??
+            booking.number_of_people ??
+            booking.number_of_tickets ??
+            1;
+
+          const travelerName =
+            booking.userId?.name ||
+            booking.user_id?.name ||
+            booking.full_name ||
+            "Guest Traveler";
+
+          const amount = booking.total_price || booking.totalPrice || 0;
+          const currency = booking.currency || "ETB";
+
+          return (
+            <div
+              key={booking._id}
+              onClick={() =>
+                setSelectedBooking({
+                  ...booking,
+                  _serviceName: serviceName,
+                  _startDate: startDate,
+                  _guestCount: guestCount,
+                  _travelerName: travelerName,
+                  _amount: amount,
+                  _currency: currency,
+                  _typeLabel: typeLabels[type],
+                })
+              }
+              className="group bg-white p-8 rounded-[40px] border border-foreground/[0.03] shadow-lg hover:shadow-2xl hover:scale-[1.01] transition-all flex flex-col md:flex-row items-center justify-between gap-10 cursor-pointer"
+            >
+              {/* Left Column: Calendar Date Badge & Context */}
+              <div className="flex items-center gap-8 w-full md:w-auto">
+                <div className="w-20 h-20 rounded-3xl bg-primary/10 flex flex-col items-center justify-center text-primary shrink-0">
+                  {startDate ? (
+                    <>
+                      <div className="text-[9px] font-black uppercase tracking-widest mb-1">
+                        {new Date(startDate).toLocaleString("default", { month: "short" })}
+                      </div>
+                      <div className="text-2xl font-black leading-none">
+                        {new Date(startDate).getDate()}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-2xl">{typeIcons[type]}</div>
+                  )}
                 </div>
-                <div className="flex gap-4">
-                  <div className="px-8 py-4 bg-primary/5 rounded-3xl border border-primary/10 text-center">
-                    <div className="text-[9px] font-black uppercase tracking-widest text-primary mb-1">Active Reservations</div>
-                    <div className="text-2xl font-black">{bookings.length}</div>
-                  </div>
-                  <div className="px-8 py-4 bg-foreground/5 rounded-3xl border border-foreground/10 text-center text-balance">
-                    <div className="text-[9px] font-black uppercase tracking-widest text-foreground/30 mb-1">Aggregate Yield</div>
-                    <div className="text-2xl font-black text-emerald-500">
-                      ETB {bookings.reduce((acc, b) => acc + (b.total_price || b.totalPrice || 0), 0).toLocaleString()}
+                <div className="space-y-2">
+                  <h4 className="text-xl font-black tracking-tight">{serviceName}</h4>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="px-3 py-1 rounded-full bg-primary/5 border border-primary/10 text-[9px] font-black uppercase tracking-widest text-primary">
+                      {typeIcons[type]} {typeLabels[type]}
+                    </div>
+                    <div className="flex items-center gap-2 text-xs font-bold text-foreground/40 uppercase">
+                      <Users className="w-3.5 h-3.5" /> {guestCount}
+                    </div>
+                    <div className="w-1 h-1 rounded-full bg-foreground/10" />
+                    <div className="text-xs font-bold text-foreground/40 uppercase">
+                      {travelerName}
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-6">
-                {bookings?.length === 0 ? (
-                  <div className="py-32 flex flex-col items-center justify-center bg-foreground/[0.02] rounded-[60px] border border-dashed border-foreground/5">
-                    <Calendar className="w-12 h-12 text-foreground/10 mb-6" />
-                    <p className="text-sm font-black uppercase tracking-widest text-foreground/20 italic">No mission records detected in registry axis.</p>
+              {/* Right Column: Dynamic Value Parameter Outputs */}
+              <div className="flex items-center gap-12 w-full md:w-auto justify-between md:justify-end">
+                <div className="text-right">
+                  <div className="text-[9px] font-black uppercase tracking-widest text-foreground/20 mb-1">
+                    Financial State
                   </div>
-                ) : (
-                  bookings.map((booking) => {
-                    // Normalize across all booking types
-                    const type = booking._bookingType || "room";
-                    const typeIcons: Record<string, string> = { room: "🏨", car: "🚗", tour: "🧭", event: "🎟" };
-                    const typeLabels: Record<string, string> = { room: "Room", car: "Car Rental", tour: "Tour", event: "Event" };
-
-                    const serviceName =
-                      booking.serviceId?.name ||
-                      booking.roomId?.name ||
-                      booking.carId?.name ||
-                      booking.tourId?.name ||
-                      booking.eventId?.name ||
-                      booking.car_id?.name ||
-                      booking.room_id?.name ||
-                      booking.tour_id?.name ||
-                      booking.event_id?.name ||
-                      "Unidentified Service";
-
-                    const startDate =
-                      booking.startDate ||
-                      booking.check_in_date ||
-                      booking.pick_up_date ||
-                      booking.event_date ||
-                      null;
-
-                    const guestCount =
-                      booking.guests ??
-                      booking.number_of_guests ??
-                      booking.number_of_people ??
-                      booking.number_of_tickets ??
-                      1;
-
-                    const travelerName =
-                      booking.userId?.name ||
-                      booking.user_id?.name ||
-                      booking.full_name ||
-                      "Guest Traveler";
-
-                    const amount = booking.total_price || booking.totalPrice || 0;
-                    const currency = booking.currency || "ETB";
-
-                    return (
-                      <div
-                        key={booking._id}
-                        onClick={() => setSelectedBooking({ ...booking, _serviceName: serviceName, _startDate: startDate, _guestCount: guestCount, _travelerName: travelerName, _amount: amount, _currency: currency, _typeLabel: typeLabels[type] })}
-                        className="group bg-white p-8 rounded-[40px] border border-foreground/[0.03] shadow-lg hover:shadow-2xl hover:scale-[1.01] transition-all flex flex-col md:flex-row items-center justify-between gap-10 cursor-pointer"
-                      >
-                        <div className="flex items-center gap-8 w-full md:w-auto">
-                          <div className="w-20 h-20 rounded-3xl bg-primary/10 flex flex-col items-center justify-center text-primary shrink-0">
-                            {startDate ? (
-                              <>
-                                <div className="text-[9px] font-black uppercase tracking-widest mb-1">
-                                  {new Date(startDate).toLocaleString('default', { month: 'short' })}
-                                </div>
-                                <div className="text-2xl font-black leading-none">{new Date(startDate).getDate()}</div>
-                              </>
-                            ) : (
-                              <div className="text-2xl">{typeIcons[type]}</div>
-                            )}
-                          </div>
-                          <div className="space-y-2">
-                            <h4 className="text-xl font-black tracking-tight">{serviceName}</h4>
-                            <div className="flex flex-wrap items-center gap-3">
-                              <div className="px-3 py-1 rounded-full bg-primary/5 border border-primary/10 text-[9px] font-black uppercase tracking-widest text-primary">
-                                {typeIcons[type]} {typeLabels[type]}
-                              </div>
-                              <div className="flex items-center gap-2 text-xs font-bold text-foreground/40 uppercase">
-                                <Users className="w-3.5 h-3.5" /> {guestCount}
-                              </div>
-                              <div className="w-1 h-1 rounded-full bg-foreground/10" />
-                              <div className="text-xs font-bold text-foreground/40 uppercase">{travelerName}</div>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-12 w-full md:w-auto justify-between md:justify-end">
-                          <div className="text-right">
-                            <div className="text-[9px] font-black uppercase tracking-widest text-foreground/20 mb-1">Financial State</div>
-                            <div className="px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border bg-emerald-500/10 text-emerald-500 border-emerald-500/20">
-                              Paid ✓
-                            </div>
-                          </div>
-                          <div className="text-right min-w-[120px]">
-                            <div className="text-[9px] font-black uppercase tracking-widest text-foreground/20 mb-1">Protocol Value</div>
-                            <div className="text-xl font-black text-primary">{currency} {amount.toLocaleString()}</div>
-                          </div>
-                          <div className={`w-14 h-14 rounded-full flex items-center justify-center border transition-all ${booking.status === 'confirmed' ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-primary/5 text-primary border-primary/10'}`}>
-                            {booking.status === 'confirmed' ? <CheckCircle2 className="w-6 h-6" /> : <Loader2 className="w-6 h-6 animate-spin" />}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
+                  <div className="px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border bg-emerald-500/10 text-emerald-500 border-emerald-500/20">
+                    Paid ✓
+                  </div>
+                </div>
+                <div className="text-right min-w-[120px]">
+                  <div className="text-[9px] font-black uppercase tracking-widest text-foreground/20 mb-1">
+                    Protocol Value
+                  </div>
+                  <div className="text-xl font-black text-primary">
+                    {currency} {amount.toLocaleString()}
+                  </div>
+                </div>
+                <div
+                  className={`w-14 h-14 rounded-full flex items-center justify-center border transition-all ${
+                    booking.status === "confirmed"
+                      ? "bg-emerald-500 text-white border-emerald-500"
+                      : "bg-primary/5 text-primary border-primary/10"
+                  }`}
+                >
+                  {booking.status === "confirmed" ? (
+                    <CheckCircle2 className="w-6 h-6" />
+                  ) : (
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                  )}
+                </div>
               </div>
             </div>
-          ) : (
+          );
+        })
+      )}
+    </div>
+  </div>
+) : (
             <div className="space-y-12">
               {/* Inventory Navigation & Filtration */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 bg-surface p-8 rounded-[40px] border border-foreground/[0.03] shadow-xl shadow-foreground/[0.02]">
@@ -1769,6 +1821,20 @@ bookingResults.forEach((result, index) => {
                                   </select>
                                   <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
                                 </div>
+
+                                <div className="space-y-3">
+  <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Accommodation Nightly Price (ETB)</label>
+  <input 
+    type="number" 
+    value={serviceForm.metadata?.accommodationPrice || ""} 
+    onChange={e => setServiceForm({ 
+      ...serviceForm, 
+      metadata: { ...serviceForm.metadata, accommodationPrice: parseFloat(e.target.value) || 0 } 
+    })} 
+    placeholder="e.g. 3500"
+    className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all" 
+  />
+</div>
                               </div>
                             </div>
                           </div>
@@ -1858,6 +1924,8 @@ bookingResults.forEach((result, index) => {
                                   </select>
                                   <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
                                 </div>
+
+                              
                               </div>
                             </div>
                           </div>
@@ -1925,6 +1993,8 @@ bookingResults.forEach((result, index) => {
                                   <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
                                 </div>
                               </div>
+                              
+                              
                             </div>
                           </div>
                         )}
@@ -1991,6 +2061,20 @@ bookingResults.forEach((result, index) => {
                                   <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
                                 </div>
                               </div>
+
+                              <div className="space-y-3 mt-4">
+  <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Facility Entry / Activity Price (ETB)</label>
+  <input 
+    type="number" 
+    value={serviceForm.metadata?.leisurePrice || ""} 
+    onChange={e => setServiceForm({ 
+      ...serviceForm, 
+      metadata: { ...serviceForm.metadata, leisurePrice: parseFloat(e.target.value) || 0 } 
+    })} 
+    placeholder="e.g. 500"
+    className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all" 
+  />
+</div>
                             </div>
                           </div>
                         )}
@@ -2077,6 +2161,20 @@ bookingResults.forEach((result, index) => {
                                   <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
                                 </div>
                               </div>
+
+                              <div className="space-y-3">
+  <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Space Reservation Price Per Hour (ETB)</label>
+  <input 
+    type="number" 
+    value={serviceForm.metadata?.pricePerHour || ""} 
+    onChange={e => setServiceForm({ 
+      ...serviceForm, 
+      metadata: { ...serviceForm.metadata, pricePerHour: parseFloat(e.target.value) || 0 } 
+    })} 
+    placeholder="e.g. 1500"
+    className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all" 
+  />
+</div>
                             </div>
                           </div>
                         )}
@@ -2324,6 +2422,20 @@ bookingResults.forEach((result, index) => {
                                       ))}
                                     </div>
                                   </div>
+
+                                  <div className="space-y-3">
+  <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Transport Transfer Fee (ETB)</label>
+  <input 
+    type="number" 
+    value={serviceForm.metadata?.transportPrice || ""} 
+    onChange={e => setServiceForm({ 
+      ...serviceForm, 
+      metadata: { ...serviceForm.metadata, transportPrice: parseFloat(e.target.value) || 0 } 
+    })} 
+    placeholder="e.g. 1200"
+    className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all" 
+  />
+</div>
                                 </div>
                               </div>
                             </div>
@@ -2380,6 +2492,20 @@ bookingResults.forEach((result, index) => {
                                   placeholder="Instant, < 30 mins, 24 hours..."
                                 />
                               </div>
+
+                              <div className="space-y-3">
+  <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">General Service Base Flat Rate (ETB)</label>
+  <input 
+    type="number" 
+    value={serviceForm.metadata?.generalServicePrice || ""} 
+    onChange={e => setServiceForm({ 
+      ...serviceForm, 
+      metadata: { ...serviceForm.metadata, generalServicePrice: parseFloat(e.target.value) || 0 } 
+    })} 
+    placeholder="e.g. 400"
+    className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all" 
+  />
+</div>
                             </div>
                           </div>
                         )}
@@ -3138,7 +3264,7 @@ bookingResults.forEach((result, index) => {
                           </div>
                         </div>
 
-<div className="space-y-6">
+                        <div className="space-y-6">
   <label className="text-xs font-black uppercase tracking-[0.3em] text-foreground/30 px-3 md:px-4 lg:px-5">
     Institutional Pricing (ETB)
   </label>
