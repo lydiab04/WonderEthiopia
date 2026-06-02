@@ -20,13 +20,18 @@ export async function POST(request: Request) {
 
         // 1.5 Capacity Check
         const service = await Service.findById(tour_id);
-        if (!service) {
-            return NextResponse.json({ error: "Tour service not found" }, { status: 404 });
-        }
-        if (!service || (service?.availability?.quantity ?? 0) <= 0) {
-                    return NextResponse.json({ error: "This car is currently out of stock/unavailable" }, { status: 400 });
-                }
+       if (!service) {
+  return NextResponse.json({ error: "Tour service not found" }, { status: 404 });
+}
 
+if (service?.availability?.isAvailable === false) {
+  return NextResponse.json({ error: "This tour is currently unavailable." }, { status: 400 });
+}
+
+const quantity = service?.availability?.quantity ?? 0;
+if (quantity > 0 && quantity <= 0) {
+  return NextResponse.json({ error: "This tour is fully booked." }, { status: 400 });
+}
         const maxCapacity = service.availability?.quantity || service.metadata?.capacity || service.metadata?.maxOccupancy || service.metadata?.eventCapacity || 0;
         
         if (maxCapacity > 0) {
