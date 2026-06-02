@@ -5,7 +5,7 @@ export async function getImageEmbedding(bytes: ArrayBuffer): Promise<number[]> {
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.HF_TOKEN}`,
+        Authorization: `Bearer ${process.env.HUGGING_FACE_API_KEY}`,
         "Content-Type": "application/octet-stream",
       },
       body: bytes,
