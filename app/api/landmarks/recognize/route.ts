@@ -45,7 +45,7 @@ export async function GET(req: Request) {
       const response = await fetch(imageUrl);
 
       if (!response.ok) {
-        throw new Error(HTTP ${response.status});
+        throw new Error(`HTTP ${response.status}`);
       }
 
       const buffer = await response.arrayBuffer();
@@ -60,10 +60,10 @@ export async function GET(req: Request) {
       landmark.embedding = Array.from(output.data as Float32Array);
       await landmark.save();
 
-      console.log(✓ ${landmark.name});
+      console.log(`✓ ${landmark.name}`);
       results.success++;
     } catch (e: any) {
-      console.error(✗ ${landmark.name}:, e.message);
+      console.error(`✗ ${landmark.name}:`, e.message);
       results.failed++;
     }
   }
@@ -88,7 +88,7 @@ export async function POST(req: Request) {
       );
     }
 
-    console.log(Processing: ${file.name});
+    console.log(`Processing: ${file.name}`);
 
     const { getImageEmbedding } = await getML();
 
