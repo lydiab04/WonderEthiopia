@@ -244,21 +244,26 @@ export default function BusinessDashboardPage() {
       );
       console.log("Booking Results:", bookingResults);
       const allBookings: any[] = [];
-      bookingResults.forEach((result, index) => {
-        if (result.status === "fulfilled") {
-          const data = result.value;
-          // Handle both { bookings: [] } and { data: [] } response shapes
-          const list = data.bookings || data.data || [];
-          if (Array.isArray(list)) {
-            list.forEach((b: any) => {
-              allBookings.push({
-                ...b,
-                _bookingType: bookingEndpoints[index].type,
-              });
-            });
-          }
-        }
+      // Replace the internal part of your bookingResults.forEach loop with this:
+bookingResults.forEach((result, index) => {
+  if (result.status === "fulfilled") {
+    const data = result.value;
+    
+    // 1. Target data directly if it is an array, or pull from expected keys
+    const list = Array.isArray(data) 
+      ? data 
+      : (data.bookings || data.data || data.value || []); // Add data.value here
+
+    if (Array.isArray(list)) {
+      list.forEach((b: any) => {
+        allBookings.push({
+          ...b,
+          _bookingType: bookingEndpoints[index].type,
+        });
       });
+    }
+  }
+});
       allBookings.sort((a, b) =>
         new Date(b.createdAt || b.pick_up_date || b.check_in_date || 0).getTime() -
         new Date(a.createdAt || a.pick_up_date || a.check_in_date || 0).getTime()
