@@ -15,8 +15,8 @@ export async function initializePayment(
     user: any, 
     txRef: string 
 ) {
-    const paymentKey = process.env.CHAPA_KEY;
-    console.log("KEY PREFIX:", process.env.CHAPA_KEY?.slice(0, 15));
+    const paymentKey = process.env.CHAPA_SECRET_KEY;
+    console.log("KEY PREFIX:", paymentKey?.slice(0, 15));
     
     const payload = {
         amount: paymentData.amount,
@@ -26,33 +26,48 @@ export async function initializePayment(
         last_name: user.last_name || "User",
         tx_ref: txRef,
         customization: {
-    title: "Payment",
-    description: "Booking payment"
-    },
-    meta: {},
+            title: "Payment",
+            description: "Booking payment"
+        },
+        meta: {},
         callback_url: "https://webhook.site/077164d6-29cb-40df-ba29-8a00e59a7e60",
         return_url: `${process.env.NEXTAUTH_URL}/payment-success?trx_ref=${txRef}`,
-        
     };
 
-    // LOG 1: See what you are sending to Chapa
     console.log("🚀 SENDING TO CHAPA:", JSON.stringify(payload, null, 2));
 
-    const response = await fetch("https://api.chapa.co/v1/transaction/initialize", {
-        method: "POST",
-        headers: {
-            "Authorization": `Bearer ${paymentKey}`,
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload)
-    });
+    try {
+        // Try the transactions endpoint if the singular one continues to give issues
+        const response = await fetch("https://api.chapa.co/v1/transaction/initialize", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${paymentKey}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload)
+        });
 
-    const result = await response.json();
+        // If Chapa returns an error status code, handle it safely without crashing
+        if (!response.ok) {
+            const rawText = await response.text();
+            console.error(`❌ Chapa HTTP Error ${response.status}:`, rawText);
+            return {
+                status: "failed",
+                message: `Chapa responded with status ${response.status}: ${rawText.slice(0, 100)}`
+            };
+        }
 
-    // LOG 2: See exactly what Chapa replied
-    console.log("📥 CHAPA RESPONSE:", JSON.stringify(result, null, 2));
+        const result = await response.json();
+        console.log("📥 CHAPA RESPONSE:", JSON.stringify(result, null, 2));
+        return result; 
 
-    return result; 
+    } catch (fetchError: any) {
+        console.error("💥 Network/Parsing error while calling Chapa:", fetchError.message);
+        return {
+            status: "failed",
+            message: `Failed to communicate with Chapa: ${fetchError.message}`
+        };
+    }
 }
 
 // Changed 'request: Request' to a specific data object
