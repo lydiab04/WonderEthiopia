@@ -159,8 +159,8 @@ export default function BusinessDashboardPage() {
 
       // Append files with file_ prefix
       Object.entries(categoryRequestForm.industryFiles).forEach(([key, file]) => {
-  if (file) formData.append(`file_${key}`, file as File);
-});
+        if (file) formData.append(`file_${key}`, file as File);
+      });
 
       const res = await fetch("/api/business/category-request", {
         method: "POST",
@@ -209,17 +209,15 @@ export default function BusinessDashboardPage() {
     if (status !== "authenticated" || session?.user?.role !== "business_owner") return;
 
     try {
-      const [bizRes, svcRes, bookRes] = await Promise.all([
+      const [bizRes, svcRes] = await Promise.all([
         fetch("/api/business/profile"),
         fetch("/api/business/services"),
-        fetch("/api/bookings")
       ]);
 
-      if (!bizRes.ok || !svcRes.ok || !bookRes.ok) {
+      if (!bizRes.ok || !svcRes.ok) {
         console.group("Institutional Sync Failed");
         console.error("Profile Registry:", bizRes.status, bizRes.statusText);
         console.error("Service Inventory:", svcRes.status, svcRes.statusText);
-        console.error("Mission Registry:", bookRes.status, bookRes.statusText);
         console.groupEnd();
 
         // If profile fails, we can't proceed with dashboard loading
@@ -228,14 +226,44 @@ export default function BusinessDashboardPage() {
 
       const bizData = await bizRes.json();
       const svcData = await svcRes.json();
-      const bookData = await bookRes.json();
 
       if (bizData.business) {
         setBusiness(bizData.business);
         setProfileForm(bizData.business);
       }
       if (svcData.services) setServices(svcData.services);
-      if (bookData.bookings) setBookings(bookData.bookings);
+      const bookingEndpoints = [
+        { url: "/api/bookings/rooms", type: "room" },
+        { url: "/api/bookings/cars", type: "car" },
+        { url: "/api/bookings/tours", type: "tour" },
+        { url: "/api/bookings/events", type: "event" },
+      ];
+
+      const bookingResults = await Promise.allSettled(
+        bookingEndpoints.map(({ url }) => fetch(url).then(r => r.json()))
+      );
+      const allBookings: any[] = [];
+      bookingResults.forEach((result, index) => {
+        if (result.status === "fulfilled") {
+          const data = result.value;
+          // Handle both { bookings: [] } and { data: [] } response shapes
+          const list = data.bookings || data.data || [];
+          if (Array.isArray(list)) {
+            list.forEach((b: any) => {
+              allBookings.push({
+                ...b,
+                _bookingType: bookingEndpoints[index].type,
+              });
+            });
+          }
+        }
+      });
+allBookings.sort((a, b) =>
+      new Date(b.createdAt || b.pick_up_date || b.check_in_date || 0).getTime() -
+      new Date(a.createdAt || a.pick_up_date || a.check_in_date || 0).getTime()
+    );
+
+    setBookings(allBookings);
     } catch (e) {
       console.error("Critical Registry Fetch Error:", e);
     } finally {
@@ -1196,7 +1224,7 @@ export default function BusinessDashboardPage() {
                                               } else if (Array.isArray(val)) {
                                                 displayValue = val.join(', ');
                                               } else if (typeof val === 'object' && val !== null) {
-                                                  const booleans = Object.entries(val).filter(([_, v]) => v === true);
+                                                const booleans = Object.entries(val).filter(([_, v]) => v === true);
                                                 if (booleans.length > 0) {
                                                   displayValue = booleans.map(([k]) => k.replace(/([A-Z])/g, ' $1').trim()).join(", ");
                                                 } else {
@@ -1595,1390 +1623,1390 @@ export default function BusinessDashboardPage() {
                           </div>
                         )}
 
-                            {/* 1. ACCOMMODATION */}
-                            {selectedSector === "hotel" && Array.isArray(serviceForm.category) && serviceForm.category.includes("accommodation") && (
-                              <div className="col-span-full space-y-10 animate-fade-in p-8 rounded-[40px] bg-white border border-foreground/5 relative overflow-hidden group/acc">
-                                <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary flex items-center gap-3">
-                                  <Bed className="w-4 h-4" /> Accommodation Intelligence
-                                </h5>
+                        {/* 1. ACCOMMODATION */}
+                        {selectedSector === "hotel" && Array.isArray(serviceForm.category) && serviceForm.category.includes("accommodation") && (
+                          <div className="col-span-full space-y-10 animate-fade-in p-8 rounded-[40px] bg-white border border-foreground/5 relative overflow-hidden group/acc">
+                            <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary flex items-center gap-3">
+                              <Bed className="w-4 h-4" /> Accommodation Intelligence
+                            </h5>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Room Identifier</label>
-                                    <input
-                                      value={serviceForm.metadata?.roomType || ""}
-                                      onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, roomType: e.target.value } })}
-                                      className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
-                                      placeholder="e.g. Deluxe Suite"
-                                    />
-                                  </div>
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Max Occupancy</label>
-                                    <input
-                                      type="number"
-                                      value={serviceForm.metadata?.maxOccupancy || 2}
-                                      onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, maxOccupancy: e.target.value } })}
-                                      className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
-                                    />
-                                  </div>
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Bed Type</label>
-                                    <div className="relative group/select">
-                                      <select
-                                        value={serviceForm.metadata?.bedType || "King"}
-                                        onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, bedType: e.target.value } })}
-                                        className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
-                                      >
-                                        <option value="King">King Bed</option>
-                                        <option value="Queen">Queen Bed</option>
-                                        <option value="Twin">Twin Beds</option>
-                                        <option value="Suite">Master Suite Level</option>
-                                      </select>
-                                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
-                                    </div>
-                                  </div>
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Room Size (SQM)</label>
-                                    <input
-                                      type="number"
-                                      value={serviceForm.metadata?.roomSize || 30}
-                                      onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, roomSize: e.target.value } })}
-                                      className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
-                                    />
-                                  </div>
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Bathroom Type</label>
-                                    <div className="relative group/select">
-                                      <select
-                                        value={serviceForm.metadata?.bathroomType || "private"}
-                                        onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, bathroomType: e.target.value } })}
-                                        className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
-                                      >
-                                        <option value="private">Private En-suite</option>
-                                        <option value="shared">Shared Facility</option>
-                                      </select>
-                                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
-                                    </div>
-                                  </div>
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">View Type</label>
-                                    <input
-                                      value={serviceForm.metadata?.viewType || "City View"}
-                                      onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, viewType: e.target.value } })}
-                                      className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
-                                      placeholder="City, Garden, Sea, Forest..."
-                                    />
-                                  </div>
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Room Service</label>
-                                    <div className="relative group/select">
-                                      <select
-                                        value={serviceForm.metadata?.roomServiceAvailable || "yes"}
-                                        onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, roomServiceAvailable: e.target.value } })}
-                                        className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
-                                      >
-                                        <option value="yes">Available 24/7</option>
-                                        <option value="no">Not Available</option>
-                                      </select>
-                                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
-                                    </div>
-                                  </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Room Identifier</label>
+                                <input
+                                  value={serviceForm.metadata?.roomType || ""}
+                                  onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, roomType: e.target.value } })}
+                                  className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
+                                  placeholder="e.g. Deluxe Suite"
+                                />
+                              </div>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Max Occupancy</label>
+                                <input
+                                  type="number"
+                                  value={serviceForm.metadata?.maxOccupancy || 2}
+                                  onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, maxOccupancy: e.target.value } })}
+                                  className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
+                                />
+                              </div>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Bed Type</label>
+                                <div className="relative group/select">
+                                  <select
+                                    value={serviceForm.metadata?.bedType || "King"}
+                                    onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, bedType: e.target.value } })}
+                                    className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
+                                  >
+                                    <option value="King">King Bed</option>
+                                    <option value="Queen">Queen Bed</option>
+                                    <option value="Twin">Twin Beds</option>
+                                    <option value="Suite">Master Suite Level</option>
+                                  </select>
+                                  <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
                                 </div>
                               </div>
-                            )}
-
-                            {/* 3. DINING */}
-                            {selectedSector === "hotel" && Array.isArray(serviceForm.category) && serviceForm.category.includes("dining") && (
-                              <div className="col-span-full space-y-10 animate-fade-in p-8 rounded-[40px] bg-white border border-foreground/5 relative overflow-hidden group/dining">
-                                <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary flex items-center gap-3">
-                                  <Utensils className="w-4 h-4" /> Culinary Portfolio Intelligence
-                                </h5>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Service Type</label>
-                                    <div className="relative group/select">
-                                      <select
-                                        value={serviceForm.metadata?.diningType || "restaurant"}
-                                        onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, diningType: e.target.value } })}
-                                        className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
-                                      >
-                                        <option value="restaurant">Full Restaurant</option>
-                                        <option value="bar">Bar / Lounge</option>
-                                        <option value="cafe">Café / Bistro</option>
-                                        <option value="room_service">Dedicated Room Service</option>
-                                      </select>
-                                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
-                                    </div>
-                                  </div>
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Cuisine Archetype</label>
-                                    <input
-                                      value={serviceForm.metadata?.cuisine || ""}
-                                      onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, cuisine: e.target.value } })}
-                                      className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
-                                      placeholder="Habesha, Italian, Continental..."
-                                    />
-                                  </div>
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Menu Artifact Available</label>
-                                    <div className="relative group/select">
-                                      <select
-                                        value={serviceForm.metadata?.menuAvailable || "yes"}
-                                        onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, menuAvailable: e.target.value } })}
-                                        className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
-                                      >
-                                        <option value="yes">Yes (Digital/Physical)</option>
-                                        <option value="no">Buffet Only / No Menu</option>
-                                      </select>
-                                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
-                                    </div>
-                                  </div>
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Opening Hours</label>
-                                    <input
-                                      value={serviceForm.metadata?.diningHours || ""}
-                                      onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, diningHours: e.target.value } })}
-                                      className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
-                                      placeholder="e.g. 06:00 - 23:00"
-                                    />
-                                  </div>
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Price Range</label>
-                                    <div className="relative group/select">
-                                      <select
-                                        value={serviceForm.metadata?.priceRange || "mid"}
-                                        onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, priceRange: e.target.value } })}
-                                        className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
-                                      >
-                                        <option value="budget">Budget (Affordable)</option>
-                                        <option value="mid">Mid-Range (Standard)</option>
-                                        <option value="luxury">Luxury (Fine Dining)</option>
-                                      </select>
-                                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
-                                    </div>
-                                  </div>
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Reservation Required</label>
-                                    <div className="relative group/select">
-                                      <select
-                                        value={serviceForm.metadata?.reservationRequired || "no"}
-                                        onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, reservationRequired: e.target.value } })}
-                                        className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
-                                      >
-                                        <option value="yes">Mandatory</option>
-                                        <option value="no">Walk-ins Welcome</option>
-                                      </select>
-                                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
-                                    </div>
-                                  </div>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Room Size (SQM)</label>
+                                <input
+                                  type="number"
+                                  value={serviceForm.metadata?.roomSize || 30}
+                                  onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, roomSize: e.target.value } })}
+                                  className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
+                                />
+                              </div>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Bathroom Type</label>
+                                <div className="relative group/select">
+                                  <select
+                                    value={serviceForm.metadata?.bathroomType || "private"}
+                                    onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, bathroomType: e.target.value } })}
+                                    className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
+                                  >
+                                    <option value="private">Private En-suite</option>
+                                    <option value="shared">Shared Facility</option>
+                                  </select>
+                                  <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
                                 </div>
                               </div>
-                            )}
-
-                            {/* 4. WELLNESS & SPA */}
-                            {selectedSector === "hotel" && Array.isArray(serviceForm.category) && serviceForm.category.includes("wellness") && (
-                              <div className="col-span-full space-y-8 animate-fade-in p-8 rounded-[40px] bg-white border border-foreground/5">
-                                <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary border-b border-primary/10 pb-2 mb-6 ml-2 flex items-center gap-3">
-                                  <Sparkles className="w-4 h-4" /> Wellness Intelligence
-                                </h5>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Service Type</label>
-                                    <input
-                                      value={serviceForm.metadata?.wellnessType || ""}
-                                      onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, wellnessType: e.target.value } })}
-                                      className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
-                                      placeholder="Massage, Sauna, Steam, Yoga..."
-                                    />
-                                  </div>
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Duration (Min)</label>
-                                    <input
-                                      type="number"
-                                      value={serviceForm.metadata?.wellnessDuration || 60}
-                                      onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, wellnessDuration: e.target.value } })}
-                                      className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
-                                    />
-                                  </div>
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Service Price</label>
-                                    <input
-                                      type="number"
-                                      value={serviceForm.metadata?.wellnessPrice || 0}
-                                      onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, wellnessPrice: parseFloat(e.target.value) } })}
-                                      className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
-                                    />
-                                  </div>
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Expert Available</label>
-                                    <div className="relative group/select">
-                                      <select
-                                        value={serviceForm.metadata?.therapistAvailable || "yes"}
-                                        onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, therapistAvailable: e.target.value } })}
-                                        className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
-                                      >
-                                        <option value="yes">Yes (Certified)</option>
-                                        <option value="no">Self-Service</option>
-                                      </select>
-                                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
-                                    </div>
-                                  </div>
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Appointment Required</label>
-                                    <div className="relative group/select">
-                                      <select
-                                        value={serviceForm.metadata?.appointmentRequired || "yes"}
-                                        onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, appointmentRequired: e.target.value } })}
-                                        className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
-                                      >
-                                        <option value="yes">Mandatory</option>
-                                        <option value="no">Drop-ins Possible</option>
-                                      </select>
-                                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
-                                    </div>
-                                  </div>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">View Type</label>
+                                <input
+                                  value={serviceForm.metadata?.viewType || "City View"}
+                                  onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, viewType: e.target.value } })}
+                                  className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
+                                  placeholder="City, Garden, Sea, Forest..."
+                                />
+                              </div>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Room Service</label>
+                                <div className="relative group/select">
+                                  <select
+                                    value={serviceForm.metadata?.roomServiceAvailable || "yes"}
+                                    onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, roomServiceAvailable: e.target.value } })}
+                                    className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
+                                  >
+                                    <option value="yes">Available 24/7</option>
+                                    <option value="no">Not Available</option>
+                                  </select>
+                                  <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
                                 </div>
                               </div>
-                            )}
+                            </div>
+                          </div>
+                        )}
 
-                            {/* 5. LEISURE & RECREATION */}
-                            {selectedSector === "hotel" && Array.isArray(serviceForm.category) && serviceForm.category.includes("leisure") && (
-                              <div className="col-span-full space-y-8 animate-fade-in p-8 rounded-[40px] bg-white border border-foreground/5">
-                                <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary border-b border-primary/10 pb-2 mb-6 ml-2 flex items-center gap-3">
-                                  <Waves className="w-4 h-4" /> Leisure Intelligence
-                                </h5>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Facility Type</label>
-                                    <input
-                                      value={serviceForm.metadata?.facilityType || ""}
-                                      onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, facilityType: e.target.value } })}
-                                      className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
-                                      placeholder="Pool, Gym, Playground, Cinema..."
-                                    />
-                                  </div>
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Access Type</label>
-                                    <div className="relative group/select">
-                                      <select
-                                        value={serviceForm.metadata?.accessType || "free"}
-                                        onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, accessType: e.target.value } })}
-                                        className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
-                                      >
-                                        <option value="free">Complimentary for Guests</option>
-                                        <option value="paid">Paid Access Artifact</option>
-                                      </select>
-                                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
-                                    </div>
-                                  </div>
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Opening Hours</label>
-                                    <input
-                                      value={serviceForm.metadata?.leisureHours || ""}
-                                      onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, leisureHours: e.target.value } })}
-                                      className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
-                                      placeholder="e.g. 08:00 - 20:00"
-                                    />
-                                  </div>
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Age Restriction</label>
-                                    <input
-                                      value={serviceForm.metadata?.ageRestriction || "None"}
-                                      onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, ageRestriction: e.target.value } })}
-                                      className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
-                                      placeholder="Adults only, 12+, All ages..."
-                                    />
-                                  </div>
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Equipment Available</label>
-                                    <div className="relative group/select">
-                                      <select
-                                        value={serviceForm.metadata?.equipmentAvailable || "no"}
-                                        onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, equipmentAvailable: e.target.value } })}
-                                        className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
-                                      >
-                                        <option value="yes">Yes (Provided)</option>
-                                        <option value="no">Bring Your Own</option>
-                                      </select>
-                                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
-                                    </div>
-                                  </div>
+                        {/* 3. DINING */}
+                        {selectedSector === "hotel" && Array.isArray(serviceForm.category) && serviceForm.category.includes("dining") && (
+                          <div className="col-span-full space-y-10 animate-fade-in p-8 rounded-[40px] bg-white border border-foreground/5 relative overflow-hidden group/dining">
+                            <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary flex items-center gap-3">
+                              <Utensils className="w-4 h-4" /> Culinary Portfolio Intelligence
+                            </h5>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Service Type</label>
+                                <div className="relative group/select">
+                                  <select
+                                    value={serviceForm.metadata?.diningType || "restaurant"}
+                                    onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, diningType: e.target.value } })}
+                                    className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
+                                  >
+                                    <option value="restaurant">Full Restaurant</option>
+                                    <option value="bar">Bar / Lounge</option>
+                                    <option value="cafe">Café / Bistro</option>
+                                    <option value="room_service">Dedicated Room Service</option>
+                                  </select>
+                                  <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
                                 </div>
                               </div>
-                            )}
-
-                            {/* 6. BUSINESS & EVENTS */}
-                            {selectedSector === "hotel" && Array.isArray(serviceForm.category) && serviceForm.category.includes("business_events") && (
-                              <div className="col-span-full space-y-8 animate-fade-in p-8 rounded-[40px] bg-white border border-foreground/5">
-                                <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary border-b border-primary/10 pb-2 mb-6 ml-2 flex items-center gap-3">
-                                  <Briefcase className="w-4 h-4" /> Business Intelligence
-                                </h5>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Space Archetype</label>
-                                    <div className="relative group/select">
-                                      <select
-                                        value={serviceForm.metadata?.spaceType || "meeting_room"}
-                                        onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, spaceType: e.target.value } })}
-                                        className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
-                                      >
-                                        <option value="meeting_room">Meeting Room</option>
-                                        <option value="conference_hall">Conference Hall</option>
-                                        <option value="ballroom">Ballroom / Event Suite</option>
-                                        <option value="office">Private Shared Office</option>
-                                      </select>
-                                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
-                                    </div>
-                                  </div>
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Delegate Capacity</label>
-                                    <input
-                                      type="number"
-                                      value={serviceForm.metadata?.eventCapacity || 20}
-                                      onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, eventCapacity: e.target.value } })}
-                                      className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
-                                    />
-                                  </div>
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Hourly Rate</label>
-                                    <input
-                                      type="number"
-                                      value={serviceForm.metadata?.pricePerHour || 0}
-                                      onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, pricePerHour: e.target.value } })}
-                                      className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
-                                    />
-                                  </div>
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Full Day Rate</label>
-                                    <input
-                                      type="number"
-                                      value={serviceForm.metadata?.pricePerDay || 0}
-                                      onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, pricePerDay: e.target.value } })}
-                                      className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
-                                    />
-                                  </div>
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Available Equipment</label>
-                                    <input
-                                      value={serviceForm.metadata?.eventEquipment || ""}
-                                      onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, eventEquipment: e.target.value } })}
-                                      className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
-                                      placeholder="Projector, Mic, Whiteboard..."
-                                    />
-                                  </div>
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Layout Types</label>
-                                    <input
-                                      value={serviceForm.metadata?.layoutTypes || ""}
-                                      onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, layoutTypes: e.target.value } })}
-                                      className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
-                                      placeholder="Theater, Classroom, U-Shape..."
-                                    />
-                                  </div>
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Booking Required</label>
-                                    <div className="relative group/select">
-                                      <select
-                                        value={serviceForm.metadata?.eventBookingRequired || "yes"}
-                                        onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, eventBookingRequired: e.target.value } })}
-                                        className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
-                                      >
-                                        <option value="yes">Mandatory</option>
-                                        <option value="no">Subject to Availability</option>
-                                      </select>
-                                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
-                                    </div>
-                                  </div>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Cuisine Archetype</label>
+                                <input
+                                  value={serviceForm.metadata?.cuisine || ""}
+                                  onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, cuisine: e.target.value } })}
+                                  className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
+                                  placeholder="Habesha, Italian, Continental..."
+                                />
+                              </div>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Menu Artifact Available</label>
+                                <div className="relative group/select">
+                                  <select
+                                    value={serviceForm.metadata?.menuAvailable || "yes"}
+                                    onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, menuAvailable: e.target.value } })}
+                                    className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
+                                  >
+                                    <option value="yes">Yes (Digital/Physical)</option>
+                                    <option value="no">Buffet Only / No Menu</option>
+                                  </select>
+                                  <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
                                 </div>
                               </div>
-                            )}
-
-                            {/* 7. TRANSPORTATION & CAR RENTAL */}
-                            {(selectedSector === "car_rental" || (selectedSector === "hotel" && Array.isArray(serviceForm.category) && serviceForm.category.includes("transport"))) && (
-
-
-                              <div className="col-span-full grid grid-cols-1 xl:grid-cols-2 gap-16">
-                                {/* Left Hemisphere: Identity, Pricing & Engineering */}
-                                <div className="space-y-12">
-                                  {/* 1. Core Identity */}
-                                  <div className="space-y-6">
-                                    <div className="text-xs font-black uppercase tracking-[0.3em] text-foreground/30">1. Core Identification</div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                      <div className="space-y-3">
-                                        <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Vehicle Name</label>
-                                        <input value={serviceForm.metadata?.vehicleName || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, vehicleName: e.target.value } })} placeholder="e.g. Toyota Land Cruiser" className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all" />
-                                      </div>
-                                      <div className="space-y-3">
-                                        <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Vehicle Type</label>
-                                        <select value={serviceForm.metadata?.vehicleType || "SUV"} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, vehicleType: e.target.value } })} className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none appearance-none cursor-pointer">
-                                          <option value="SUV">SUV (Sport Utility)</option>
-                                          <option value="sedan">Sedan</option>
-                                          <option value="minibus">Minibus / Van</option>
-                                          <option value="pickup">Pickup Truck</option>
-                                        </select>
-                                      </div>
-                                      <div className="space-y-3 col-span-full">
-                                        <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Base Operations Hub</label>
-                                        <input value={serviceForm.metadata?.location || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, location: e.target.value } })} placeholder="Pickup Location" className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all" />
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {/* 2. Pricing & Financial Protocol */}
-                                  <div className="space-y-6">
-                                    <div className="text-xs font-black uppercase tracking-[0.3em] text-foreground/30">2. Pricing & Financial Protocol</div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-primary/[0.01] p-8 rounded-[40px] border border-primary/5">
-                                      <div className="space-y-3">
-                                        <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Pricing Type</label>
-                                        <select value={serviceForm.metadata?.pricingType || "per_day"} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, pricingType: e.target.value } })} className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none appearance-none cursor-pointer">
-                                          <option value="per_hour">Per Hour</option>
-                                          <option value="per_day">Per Day</option>
-                                          <option value="per_trip">Per Trip / Transfer</option>
-                                        </select>
-                                      </div>
-
-                                      <div className="space-y-3">
-                                        <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Deposit Req.</label>
-                                        <select value={serviceForm.metadata?.depositRequired || "no"} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, depositRequired: e.target.value } })} className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none appearance-none cursor-pointer">
-                                          <option value="no">No Deposit</option>
-                                          <option value="yes">Mandatory Deposit</option>
-                                        </select>
-                                      </div>
-                                      <div className="space-y-3">
-                                        <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Deposit Amount</label>
-                                        <input type="number" value={serviceForm.metadata?.depositAmount || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, depositAmount: e.target.value } })} placeholder="Amount in ETB" className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none" />
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {/* 3. Specifications & Architecture */}
-                                  <div className="space-y-6">
-                                    <div className="text-xs font-black uppercase tracking-[0.3em] text-foreground/30">3. Specifications & Engineering</div>
-                                    <div className="grid grid-cols-2 gap-8">
-                                      <div className="space-y-3">
-                                        <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Brand</label>
-                                        <input value={serviceForm.metadata?.brand || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, brand: e.target.value } })} placeholder="Toyota, Ford..." className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white transition-all" />
-                                      </div>
-                                      <div className="space-y-3">
-                                        <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Model</label>
-                                        <input value={serviceForm.metadata?.model || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, model: e.target.value } })} placeholder="V8, Hilux..." className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white transition-all" />
-                                      </div>
-                                      <div className="space-y-3">
-                                        <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Manufacturing Year</label>
-                                        <input type="number" value={serviceForm.metadata?.year || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, year: e.target.value } })} placeholder="2024" className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white transition-all" />
-                                      </div>
-                                      <div className="space-y-3">
-                                        <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Fuel Type</label>
-                                        <select value={serviceForm.metadata?.fuelType || "diesel"} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, fuelType: e.target.value } })} className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none appearance-none cursor-pointer">
-                                          <option value="petrol">Petrol</option>
-                                          <option value="diesel">Diesel</option>
-                                          <option value="electric">Electric</option>
-                                          <option value="hybrid">Hybrid</option>
-                                        </select>
-                                      </div>
-                                      <div className="space-y-3">
-                                        <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Transmission</label>
-                                        <select value={serviceForm.metadata?.transmission || "automatic"} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, transmission: e.target.value } })} className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none appearance-none cursor-pointer">
-                                          <option value="automatic">Automatic</option>
-                                          <option value="manual">Manual Transmission</option>
-                                        </select>
-                                      </div>
-                                      <div className="space-y-3">
-                                        <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Seating</label>
-                                        <input type="number" value={serviceForm.metadata?.transportCapacity || 4} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, transportCapacity: e.target.value } })} className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none" />
-                                      </div>
-                                      <div className="space-y-3">
-                                        <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Luggage</label>
-                                        <input value={serviceForm.metadata?.luggageCapacity || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, luggageCapacity: e.target.value } })} placeholder="e.g. 3 Bags" className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none" />
-                                      </div>
-                                      <div className="space-y-3">
-                                        <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">A/C Status</label>
-                                        <select value={serviceForm.metadata?.airConditioning || "yes"} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, airConditioning: e.target.value } })} className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none appearance-none cursor-pointer">
-                                          <option value="yes">A/C Included</option>
-                                          <option value="no">No A/C</option>
-                                        </select>
-                                      </div>
-                                    </div>
-                                  </div>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Opening Hours</label>
+                                <input
+                                  value={serviceForm.metadata?.diningHours || ""}
+                                  onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, diningHours: e.target.value } })}
+                                  className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
+                                  placeholder="e.g. 06:00 - 23:00"
+                                />
+                              </div>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Price Range</label>
+                                <div className="relative group/select">
+                                  <select
+                                    value={serviceForm.metadata?.priceRange || "mid"}
+                                    onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, priceRange: e.target.value } })}
+                                    className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
+                                  >
+                                    <option value="budget">Budget (Affordable)</option>
+                                    <option value="mid">Mid-Range (Standard)</option>
+                                    <option value="luxury">Luxury (Fine Dining)</option>
+                                  </select>
+                                  <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
                                 </div>
-
-                                {/* Right Hemisphere: Features, Roles & Governance */}
-                                <div className="space-y-12">
-                                  <div className="space-y-6">
-                                    <div className="text-xs font-black uppercase tracking-[0.3em] text-foreground/30">4. Features & Comfort Artifacts</div>
-                                    <div className="bg-foreground/[0.01] p-8 rounded-[40px] border border-foreground/5 space-y-8">
-                                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-                                        {[
-                                          { key: "gps", label: "GPS" },
-                                          { key: "bluetooth", label: "Bluetooth" },
-                                          { key: "usb", label: "USB Charging" },
-                                          { key: "child_seat", label: "Child Seat" },
-                                          { key: "sunroof", label: "Sunroof" }
-                                        ].map(feat => (
-                                          <button
-                                            key={feat.key}
-                                            type="button"
-                                            onClick={() => {
-                                              const current = serviceForm.metadata?.features || [];
-                                              const next = current.includes(feat.key) ? current.filter((k: string) => k !== feat.key) : [...current, feat.key];
-                                              setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, features: next } });
-                                            }}
-                                            className={`px-4 py-3 rounded-2xl border text-[9px] font-black uppercase tracking-widest transition-all ${serviceForm.metadata?.features?.includes(feat.key) ? 'bg-primary border-primary text-white shadow-lg' : 'bg-white border-foreground/5 text-foreground/40'}`}
-                                          >
-                                            {feat.label}
-                                          </button>
-                                        ))}
-                                      </div>
-                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                        <div className="space-y-3">
-                                          <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Comfort Tier</label>
-                                          <select value={serviceForm.metadata?.comfortLevel || "standard"} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, comfortLevel: e.target.value } })} className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none appearance-none cursor-pointer">
-                                            <option value="standard">Standard Level</option>
-                                            <option value="luxury">Luxury / VIP</option>
-                                          </select>
-                                        </div>
-                                        <div className="space-y-3">
-                                          <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Exterior Color</label>
-                                          <input value={serviceForm.metadata?.color || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, color: e.target.value } })} placeholder="Silver, Black..." className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none" />
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {/* 5. Driver & Fleet Options */}
-                                  <div className="space-y-6">
-                                    <div className="text-xs font-black uppercase tracking-[0.3em] text-foreground/30">5. Driver & Operational Modes</div>
-                                    <div className="grid grid-cols-1 gap-8">
-                                      <div className="bg-foreground/[0.01] p-8 rounded-[40px] border border-foreground/5 space-y-6">
-                                        <div className="flex items-center gap-4">
-                                          <input type="checkbox" checked={serviceForm.metadata?.withDriver || false} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, withDriver: e.target.checked } })} className="w-6 h-6 rounded-lg accent-primary" />
-                                          <label className="text-xs font-black uppercase tracking-widest text-foreground/60">Chauffeur Service (With Driver)</label>
-                                        </div>
-                                        <div className="grid grid-cols-1 gap-6">
-                                          <div className="space-y-3">
-                                            <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Driver Inc. Price</label>
-                                            <input type="number" value={serviceForm.metadata?.driverIncludedPrice || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, driverIncludedPrice: e.target.value } })} placeholder="+ Amount" className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none" />
-                                          </div>
-                                          <div className="space-y-3">
-                                            <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Experience</label>
-                                            <input value={serviceForm.metadata?.driverExperience || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, driverExperience: e.target.value } })} placeholder="e.g. 5+ Years" className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none" />
-                                          </div>
-                                          <div className="space-y-3">
-                                            <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Driver Languages</label>
-                                            <input value={serviceForm.metadata?.driverLanguages || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, driverLanguages: e.target.value } })} placeholder="Amharic, English, French..." className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none" />
-                                          </div>
-                                        </div>
-                                      </div>
-                                      <div className="bg-foreground/[0.01] p-8 rounded-[40px] border border-foreground/5 space-y-6">
-                                        <div className="flex items-center gap-4">
-                                          <input type="checkbox" checked={serviceForm.metadata?.selfDriveAvailable !== false} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, selfDriveAvailable: e.target.checked } })} className="w-6 h-6 rounded-lg accent-primary" />
-                                          <label className="text-xs font-black uppercase tracking-widest text-foreground/60">Self-Drive Permission</label>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-
+                              </div>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Reservation Required</label>
+                                <div className="relative group/select">
+                                  <select
+                                    value={serviceForm.metadata?.reservationRequired || "no"}
+                                    onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, reservationRequired: e.target.value } })}
+                                    className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
+                                  >
+                                    <option value="yes">Mandatory</option>
+                                    <option value="no">Walk-ins Welcome</option>
+                                  </select>
+                                  <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
                                 </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
 
-                                {/* Full Width Sub-Grid: Governance & Safety */}
-                                <div className="col-span-full grid grid-cols-1 xl:grid-cols-2 gap-12 pt-12 border-t-2 border-foreground/[0.03]">
-                                  <div className="space-y-8">
-                                    <div className="text-xs font-black uppercase tracking-[0.3em] text-primary border-b border-primary/5 pb-2">Governance & Rental Terms</div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* 4. WELLNESS & SPA */}
+                        {selectedSector === "hotel" && Array.isArray(serviceForm.category) && serviceForm.category.includes("wellness") && (
+                          <div className="col-span-full space-y-8 animate-fade-in p-8 rounded-[40px] bg-white border border-foreground/5">
+                            <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary border-b border-primary/10 pb-2 mb-6 ml-2 flex items-center gap-3">
+                              <Sparkles className="w-4 h-4" /> Wellness Intelligence
+                            </h5>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Service Type</label>
+                                <input
+                                  value={serviceForm.metadata?.wellnessType || ""}
+                                  onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, wellnessType: e.target.value } })}
+                                  className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
+                                  placeholder="Massage, Sauna, Steam, Yoga..."
+                                />
+                              </div>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Duration (Min)</label>
+                                <input
+                                  type="number"
+                                  value={serviceForm.metadata?.wellnessDuration || 60}
+                                  onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, wellnessDuration: e.target.value } })}
+                                  className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
+                                />
+                              </div>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Service Price</label>
+                                <input
+                                  type="number"
+                                  value={serviceForm.metadata?.wellnessPrice || 0}
+                                  onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, wellnessPrice: parseFloat(e.target.value) } })}
+                                  className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
+                                />
+                              </div>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Expert Available</label>
+                                <div className="relative group/select">
+                                  <select
+                                    value={serviceForm.metadata?.therapistAvailable || "yes"}
+                                    onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, therapistAvailable: e.target.value } })}
+                                    className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
+                                  >
+                                    <option value="yes">Yes (Certified)</option>
+                                    <option value="no">Self-Service</option>
+                                  </select>
+                                  <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
+                                </div>
+                              </div>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Appointment Required</label>
+                                <div className="relative group/select">
+                                  <select
+                                    value={serviceForm.metadata?.appointmentRequired || "yes"}
+                                    onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, appointmentRequired: e.target.value } })}
+                                    className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
+                                  >
+                                    <option value="yes">Mandatory</option>
+                                    <option value="no">Drop-ins Possible</option>
+                                  </select>
+                                  <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
 
-                                      <div className="space-y-3">
-                                        <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Fuel Policy</label>
-                                        <input value={serviceForm.metadata?.fuelPolicy || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, fuelPolicy: e.target.value } })} placeholder="Full-to-Full, Prepaid..." className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none" />
-                                      </div>
-                                      <div className="space-y-3">
-                                        <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Mileage Limit</label>
-                                        <input value={serviceForm.metadata?.mileageLimit || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, mileageLimit: e.target.value } })} placeholder="km/day or Unlimited" className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none" />
-                                      </div>
-                                      <div className="space-y-3 col-span-full">
-                                        <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Usage Restrictions</label>
-                                        <input value={serviceForm.metadata?.notAllowedUses || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, notAllowedUses: e.target.value } })} placeholder="e.g. No Off-road, No Cross-border..." className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none" />
-                                      </div>
-                                    </div>
+                        {/* 5. LEISURE & RECREATION */}
+                        {selectedSector === "hotel" && Array.isArray(serviceForm.category) && serviceForm.category.includes("leisure") && (
+                          <div className="col-span-full space-y-8 animate-fade-in p-8 rounded-[40px] bg-white border border-foreground/5">
+                            <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary border-b border-primary/10 pb-2 mb-6 ml-2 flex items-center gap-3">
+                              <Waves className="w-4 h-4" /> Leisure Intelligence
+                            </h5>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Facility Type</label>
+                                <input
+                                  value={serviceForm.metadata?.facilityType || ""}
+                                  onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, facilityType: e.target.value } })}
+                                  className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
+                                  placeholder="Pool, Gym, Playground, Cinema..."
+                                />
+                              </div>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Access Type</label>
+                                <div className="relative group/select">
+                                  <select
+                                    value={serviceForm.metadata?.accessType || "free"}
+                                    onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, accessType: e.target.value } })}
+                                    className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
+                                  >
+                                    <option value="free">Complimentary for Guests</option>
+                                    <option value="paid">Paid Access Artifact</option>
+                                  </select>
+                                  <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
+                                </div>
+                              </div>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Opening Hours</label>
+                                <input
+                                  value={serviceForm.metadata?.leisureHours || ""}
+                                  onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, leisureHours: e.target.value } })}
+                                  className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
+                                  placeholder="e.g. 08:00 - 20:00"
+                                />
+                              </div>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Age Restriction</label>
+                                <input
+                                  value={serviceForm.metadata?.ageRestriction || "None"}
+                                  onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, ageRestriction: e.target.value } })}
+                                  className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
+                                  placeholder="Adults only, 12+, All ages..."
+                                />
+                              </div>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Equipment Available</label>
+                                <div className="relative group/select">
+                                  <select
+                                    value={serviceForm.metadata?.equipmentAvailable || "no"}
+                                    onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, equipmentAvailable: e.target.value } })}
+                                    className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
+                                  >
+                                    <option value="yes">Yes (Provided)</option>
+                                    <option value="no">Bring Your Own</option>
+                                  </select>
+                                  <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 6. BUSINESS & EVENTS */}
+                        {selectedSector === "hotel" && Array.isArray(serviceForm.category) && serviceForm.category.includes("business_events") && (
+                          <div className="col-span-full space-y-8 animate-fade-in p-8 rounded-[40px] bg-white border border-foreground/5">
+                            <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary border-b border-primary/10 pb-2 mb-6 ml-2 flex items-center gap-3">
+                              <Briefcase className="w-4 h-4" /> Business Intelligence
+                            </h5>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Space Archetype</label>
+                                <div className="relative group/select">
+                                  <select
+                                    value={serviceForm.metadata?.spaceType || "meeting_room"}
+                                    onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, spaceType: e.target.value } })}
+                                    className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
+                                  >
+                                    <option value="meeting_room">Meeting Room</option>
+                                    <option value="conference_hall">Conference Hall</option>
+                                    <option value="ballroom">Ballroom / Event Suite</option>
+                                    <option value="office">Private Shared Office</option>
+                                  </select>
+                                  <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
+                                </div>
+                              </div>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Delegate Capacity</label>
+                                <input
+                                  type="number"
+                                  value={serviceForm.metadata?.eventCapacity || 20}
+                                  onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, eventCapacity: e.target.value } })}
+                                  className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
+                                />
+                              </div>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Hourly Rate</label>
+                                <input
+                                  type="number"
+                                  value={serviceForm.metadata?.pricePerHour || 0}
+                                  onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, pricePerHour: e.target.value } })}
+                                  className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
+                                />
+                              </div>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Full Day Rate</label>
+                                <input
+                                  type="number"
+                                  value={serviceForm.metadata?.pricePerDay || 0}
+                                  onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, pricePerDay: e.target.value } })}
+                                  className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
+                                />
+                              </div>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Available Equipment</label>
+                                <input
+                                  value={serviceForm.metadata?.eventEquipment || ""}
+                                  onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, eventEquipment: e.target.value } })}
+                                  className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
+                                  placeholder="Projector, Mic, Whiteboard..."
+                                />
+                              </div>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Layout Types</label>
+                                <input
+                                  value={serviceForm.metadata?.layoutTypes || ""}
+                                  onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, layoutTypes: e.target.value } })}
+                                  className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
+                                  placeholder="Theater, Classroom, U-Shape..."
+                                />
+                              </div>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Booking Required</label>
+                                <div className="relative group/select">
+                                  <select
+                                    value={serviceForm.metadata?.eventBookingRequired || "yes"}
+                                    onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, eventBookingRequired: e.target.value } })}
+                                    className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
+                                  >
+                                    <option value="yes">Mandatory</option>
+                                    <option value="no">Subject to Availability</option>
+                                  </select>
+                                  <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 7. TRANSPORTATION & CAR RENTAL */}
+                        {(selectedSector === "car_rental" || (selectedSector === "hotel" && Array.isArray(serviceForm.category) && serviceForm.category.includes("transport"))) && (
+
+
+                          <div className="col-span-full grid grid-cols-1 xl:grid-cols-2 gap-16">
+                            {/* Left Hemisphere: Identity, Pricing & Engineering */}
+                            <div className="space-y-12">
+                              {/* 1. Core Identity */}
+                              <div className="space-y-6">
+                                <div className="text-xs font-black uppercase tracking-[0.3em] text-foreground/30">1. Core Identification</div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                  <div className="space-y-3">
+                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Vehicle Name</label>
+                                    <input value={serviceForm.metadata?.vehicleName || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, vehicleName: e.target.value } })} placeholder="e.g. Toyota Land Cruiser" className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all" />
                                   </div>
-                                  <div className="space-y-8">
-                                    <div className="text-xs font-black uppercase tracking-[0.3em] text-primary border-b border-primary/5 pb-2">Safety & Insurance Framework</div>
-                                    <div className="space-y-6 bg-primary/[0.01] p-8 rounded-[40px] border border-primary/5">
-                                      <div className="flex items-center gap-4">
-                                        <input type="checkbox" checked={serviceForm.metadata?.insuranceIncluded || true} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, insuranceIncluded: e.target.checked } })} className="w-6 h-6 rounded-lg accent-primary" />
-                                        <label className="text-xs font-black uppercase tracking-widest text-foreground/60">Insurance Included</label>
-                                      </div>
-                                      <div className="grid grid-cols-2 gap-6">
-                                        <div className="space-y-3">
-                                          <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Insurance Type</label>
-                                          <input value={serviceForm.metadata?.insuranceType || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, insuranceType: e.target.value } })} placeholder="Basic / Full Coverage" className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none" />
-                                        </div>
-                                        <div className="space-y-3">
-                                          <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Extra KM Charge</label>
-                                          <input type="number" value={serviceForm.metadata?.extraKmCharge || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, extraKmCharge: e.target.value } })} placeholder="Price/km" className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none" />
-                                        </div>
-                                      </div>
-                                      <div className="space-y-4">
-                                        <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Safety Artifacts</label>
-                                        <div className="flex flex-wrap gap-3">
-                                          {["Airbags", "ABS", "Rear Camera"].map(safe => (
-                                            <button
-                                              key={safe}
-                                              type="button"
-                                              onClick={() => {
-                                                const current = serviceForm.metadata?.safetyFeatures || "";
-                                                const next = current.includes(safe) ? current.replace(safe, "").replace(", ,", ",").trim() : `${current}${current ? ', ' : ''}${safe}`;
-                                                setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, safetyFeatures: next } });
-                                              }}
-                                              className={`px-4 py-2 rounded-xl border text-[8px] font-black uppercase tracking-widest transition-all ${serviceForm.metadata?.safetyFeatures?.includes(safe) ? 'bg-primary border-primary text-white' : 'bg-white border-foreground/5 text-foreground/30'}`}
-                                            >
-                                              {safe}
-                                            </button>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    </div>
+                                  <div className="space-y-3">
+                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Vehicle Type</label>
+                                    <select value={serviceForm.metadata?.vehicleType || "SUV"} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, vehicleType: e.target.value } })} className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none appearance-none cursor-pointer">
+                                      <option value="SUV">SUV (Sport Utility)</option>
+                                      <option value="sedan">Sedan</option>
+                                      <option value="minibus">Minibus / Van</option>
+                                      <option value="pickup">Pickup Truck</option>
+                                    </select>
+                                  </div>
+                                  <div className="space-y-3 col-span-full">
+                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Base Operations Hub</label>
+                                    <input value={serviceForm.metadata?.location || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, location: e.target.value } })} placeholder="Pickup Location" className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all" />
                                   </div>
                                 </div>
                               </div>
 
-                            )}
+                              {/* 2. Pricing & Financial Protocol */}
+                              <div className="space-y-6">
+                                <div className="text-xs font-black uppercase tracking-[0.3em] text-foreground/30">2. Pricing & Financial Protocol</div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-primary/[0.01] p-8 rounded-[40px] border border-primary/5">
+                                  <div className="space-y-3">
+                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Pricing Type</label>
+                                    <select value={serviceForm.metadata?.pricingType || "per_day"} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, pricingType: e.target.value } })} className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none appearance-none cursor-pointer">
+                                      <option value="per_hour">Per Hour</option>
+                                      <option value="per_day">Per Day</option>
+                                      <option value="per_trip">Per Trip / Transfer</option>
+                                    </select>
+                                  </div>
 
-                            {/* 8. GENERAL HOTEL SERVICES */}
-                            {selectedSector === "hotel" && Array.isArray(serviceForm.category) && serviceForm.category.includes("general_services") && (
-                              <div className="col-span-full space-y-8 animate-fade-in p-8 rounded-[40px] bg-white border border-foreground/5">
-                                <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary border-b border-primary/10 pb-2 mb-6 ml-2 flex items-center gap-3">
-                                  <ShieldCheck className="w-4 h-4" /> Comprehensive General Intelligence
-                                </h5>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
                                   <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Service Type</label>
-                                    <input
-                                      value={serviceForm.metadata?.generalServiceType || ""}
-                                      onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, generalServiceType: e.target.value } })}
-                                      className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
-                                      placeholder="Laundry, Concierge, Gift Shop..."
-                                    />
+                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Deposit Req.</label>
+                                    <select value={serviceForm.metadata?.depositRequired || "no"} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, depositRequired: e.target.value } })} className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none appearance-none cursor-pointer">
+                                      <option value="no">No Deposit</option>
+                                      <option value="yes">Mandatory Deposit</option>
+                                    </select>
                                   </div>
                                   <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Availability Loop</label>
-                                    <div className="relative group/select">
-                                      <select
-                                        value={serviceForm.metadata?.generalAvailability || "24/7"}
-                                        onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, generalAvailability: e.target.value } })}
-                                        className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
-                                      >
-                                        <option value="24/7">24/7 Operations</option>
-                                        <option value="daytime">Daytime Only</option>
-                                        <option value="seasonal">Seasonal Operations</option>
-                                      </select>
-                                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
-                                    </div>
-                                  </div>
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Service Price</label>
-                                    <input
-                                      type="number"
-                                      value={serviceForm.metadata?.generalServicePrice || 0}
-                                      onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, generalServicePrice: parseFloat(e.target.value) } })}
-                                      className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
-                                    />
-                                  </div>
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Response Time</label>
-                                    <input
-                                      value={serviceForm.metadata?.responseTime || ""}
-                                      onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, responseTime: e.target.value } })}
-                                      className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
-                                      placeholder="Instant, < 30 mins, 24 hours..."
-                                    />
+                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Deposit Amount</label>
+                                    <input type="number" value={serviceForm.metadata?.depositAmount || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, depositAmount: e.target.value } })} placeholder="Amount in ETB" className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none" />
                                   </div>
                                 </div>
                               </div>
-                            )}
 
-                            {(selectedSector === "tour_operator" || (Array.isArray(serviceForm.category) && serviceForm.category.includes("tour"))) && (
-                              <div className="col-span-full space-y-16 animate-fade-in relative mt-8 pt-8 border-t border-foreground/[0.05]">
-                                {/* 1. Basic Tour Overview */}
-                                <div className="space-y-6">
-                                  <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary/60 border-b border-primary/10 pb-2">1. Basic Tour Overview</h5>
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              {/* 3. Specifications & Architecture */}
+                              <div className="space-y-6">
+                                <div className="text-xs font-black uppercase tracking-[0.3em] text-foreground/30">3. Specifications & Engineering</div>
+                                <div className="grid grid-cols-2 gap-8">
+                                  <div className="space-y-3">
+                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Brand</label>
+                                    <input value={serviceForm.metadata?.brand || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, brand: e.target.value } })} placeholder="Toyota, Ford..." className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white transition-all" />
+                                  </div>
+                                  <div className="space-y-3">
+                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Model</label>
+                                    <input value={serviceForm.metadata?.model || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, model: e.target.value } })} placeholder="V8, Hilux..." className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white transition-all" />
+                                  </div>
+                                  <div className="space-y-3">
+                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Manufacturing Year</label>
+                                    <input type="number" value={serviceForm.metadata?.year || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, year: e.target.value } })} placeholder="2024" className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white transition-all" />
+                                  </div>
+                                  <div className="space-y-3">
+                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Fuel Type</label>
+                                    <select value={serviceForm.metadata?.fuelType || "diesel"} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, fuelType: e.target.value } })} className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none appearance-none cursor-pointer">
+                                      <option value="petrol">Petrol</option>
+                                      <option value="diesel">Diesel</option>
+                                      <option value="electric">Electric</option>
+                                      <option value="hybrid">Hybrid</option>
+                                    </select>
+                                  </div>
+                                  <div className="space-y-3">
+                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Transmission</label>
+                                    <select value={serviceForm.metadata?.transmission || "automatic"} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, transmission: e.target.value } })} className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none appearance-none cursor-pointer">
+                                      <option value="automatic">Automatic</option>
+                                      <option value="manual">Manual Transmission</option>
+                                    </select>
+                                  </div>
+                                  <div className="space-y-3">
+                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Seating</label>
+                                    <input type="number" value={serviceForm.metadata?.transportCapacity || 4} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, transportCapacity: e.target.value } })} className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none" />
+                                  </div>
+                                  <div className="space-y-3">
+                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Luggage</label>
+                                    <input value={serviceForm.metadata?.luggageCapacity || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, luggageCapacity: e.target.value } })} placeholder="e.g. 3 Bags" className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none" />
+                                  </div>
+                                  <div className="space-y-3">
+                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">A/C Status</label>
+                                    <select value={serviceForm.metadata?.airConditioning || "yes"} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, airConditioning: e.target.value } })} className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none appearance-none cursor-pointer">
+                                      <option value="yes">A/C Included</option>
+                                      <option value="no">No A/C</option>
+                                    </select>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Right Hemisphere: Features, Roles & Governance */}
+                            <div className="space-y-12">
+                              <div className="space-y-6">
+                                <div className="text-xs font-black uppercase tracking-[0.3em] text-foreground/30">4. Features & Comfort Artifacts</div>
+                                <div className="bg-foreground/[0.01] p-8 rounded-[40px] border border-foreground/5 space-y-8">
+                                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+                                    {[
+                                      { key: "gps", label: "GPS" },
+                                      { key: "bluetooth", label: "Bluetooth" },
+                                      { key: "usb", label: "USB Charging" },
+                                      { key: "child_seat", label: "Child Seat" },
+                                      { key: "sunroof", label: "Sunroof" }
+                                    ].map(feat => (
+                                      <button
+                                        key={feat.key}
+                                        type="button"
+                                        onClick={() => {
+                                          const current = serviceForm.metadata?.features || [];
+                                          const next = current.includes(feat.key) ? current.filter((k: string) => k !== feat.key) : [...current, feat.key];
+                                          setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, features: next } });
+                                        }}
+                                        className={`px-4 py-3 rounded-2xl border text-[9px] font-black uppercase tracking-widest transition-all ${serviceForm.metadata?.features?.includes(feat.key) ? 'bg-primary border-primary text-white shadow-lg' : 'bg-white border-foreground/5 text-foreground/40'}`}
+                                      >
+                                        {feat.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     <div className="space-y-3">
-                                      <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Expedition Duration</label>
-                                      <div className="grid grid-cols-2 gap-4">
-                                        <div className="relative group">
-                                          <div className="absolute top-1/2 -translate-y-1/2 right-6 text-xs font-black text-foreground/20 uppercase tracking-widest pointer-events-none group-focus-within:text-primary transition-colors">Days</div>
-                                          <input
-                                            type="number"
-                                            min="1"
-                                            placeholder="1"
-                                            value={serviceForm.metadata?.durationDays || ""}
-                                            onChange={e => {
-                                              const d = parseInt(e.target.value) || 0;
-                                              setServiceForm({
-                                                ...serviceForm,
-                                                metadata: {
-                                                  ...serviceForm.metadata,
-                                                  durationDays: d,
-                                                  durationNights: serviceForm.metadata?.durationNights || Math.max(0, d - 1)
-                                                }
-                                              });
-                                            }}
-                                            className="w-full bg-white px-8 py-5 rounded-[28px] border border-foreground/5 font-black text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20 appearance-none"
-                                          />
-                                        </div>
-                                        <div className="relative group">
-                                          <div className="absolute top-1/2 -translate-y-1/2 right-6 text-xs font-black text-foreground/20 uppercase tracking-widest pointer-events-none group-focus-within:text-primary transition-colors">Nights</div>
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            placeholder="0"
-                                            value={serviceForm.metadata?.durationNights ?? ""}
-                                            onChange={e => {
-                                              const n = parseInt(e.target.value) || 0;
-                                              setServiceForm({
-                                                ...serviceForm,
-                                                metadata: {
-                                                  ...serviceForm.metadata,
-                                                  durationNights: n,
-                                                  durationDays: serviceForm.metadata?.durationDays || n + 1
-                                                }
-                                              });
-                                            }}
-                                            className="w-full bg-white px-8 py-5 rounded-[28px] border border-foreground/5 font-black text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20 appearance-none"
-                                          />
-                                        </div>
+                                      <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Comfort Tier</label>
+                                      <select value={serviceForm.metadata?.comfortLevel || "standard"} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, comfortLevel: e.target.value } })} className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none appearance-none cursor-pointer">
+                                        <option value="standard">Standard Level</option>
+                                        <option value="luxury">Luxury / VIP</option>
+                                      </select>
+                                    </div>
+                                    <div className="space-y-3">
+                                      <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Exterior Color</label>
+                                      <input value={serviceForm.metadata?.color || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, color: e.target.value } })} placeholder="Silver, Black..." className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none" />
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* 5. Driver & Fleet Options */}
+                              <div className="space-y-6">
+                                <div className="text-xs font-black uppercase tracking-[0.3em] text-foreground/30">5. Driver & Operational Modes</div>
+                                <div className="grid grid-cols-1 gap-8">
+                                  <div className="bg-foreground/[0.01] p-8 rounded-[40px] border border-foreground/5 space-y-6">
+                                    <div className="flex items-center gap-4">
+                                      <input type="checkbox" checked={serviceForm.metadata?.withDriver || false} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, withDriver: e.target.checked } })} className="w-6 h-6 rounded-lg accent-primary" />
+                                      <label className="text-xs font-black uppercase tracking-widest text-foreground/60">Chauffeur Service (With Driver)</label>
+                                    </div>
+                                    <div className="grid grid-cols-1 gap-6">
+                                      <div className="space-y-3">
+                                        <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Driver Inc. Price</label>
+                                        <input type="number" value={serviceForm.metadata?.driverIncludedPrice || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, driverIncludedPrice: e.target.value } })} placeholder="+ Amount" className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none" />
                                       </div>
-                                      <div className="flex items-center gap-3 px-3 md:px-4 lg:px-5 py-3 bg-primary/[0.03] rounded-2xl border border-primary/5 w-fit">
-                                        <Calendar className="w-3.5 h-3.5 text-primary" />
-                                        <span className="text-xs font-black uppercase tracking-wider text-primary/60">
-                                          Registry Sync: {serviceForm.metadata?.durationDays || 0} Days & {serviceForm.metadata?.durationNights || 0} Nights
-                                        </span>
+                                      <div className="space-y-3">
+                                        <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Experience</label>
+                                        <input value={serviceForm.metadata?.driverExperience || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, driverExperience: e.target.value } })} placeholder="e.g. 5+ Years" className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none" />
+                                      </div>
+                                      <div className="space-y-3">
+                                        <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Driver Languages</label>
+                                        <input value={serviceForm.metadata?.driverLanguages || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, driverLanguages: e.target.value } })} placeholder="Amharic, English, French..." className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none" />
                                       </div>
                                     </div>
-                                    <div className="space-y-3 relative">
-                                      <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Tour Type</label>
-                                      {selectedSector === "tour_operator" ? (
-                                        <div className="relative">
-                                          <button
-                                            type="button"
-                                            onClick={() => setShowTourTypeDropdown(!showTourTypeDropdown)}
-                                            className="w-full bg-white px-8 py-5 rounded-[30px] border border-foreground/5 font-black text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20 flex items-center justify-between"
-                                          >
-                                            <div className="flex flex-wrap gap-2 truncate pr-4">
-                                              {Array.isArray(serviceForm.category) && serviceForm.category.length > 0 ? (
-                                                serviceForm.category.map((c: string) => {
-                                                  const labels: any = {
-                                                    tour: "Curated Tour", expedition: "Multi-Day Expedition", culture: "Cultural Experience",
-                                                    wildlife: "Wildlife Safari", hiking: "Hiking & Trekking", logistics: "Logistics & Transport",
-                                                    niche: "Niche Artifact", custom: "Custom Category"
-                                                  };
-                                                  return <span key={c} className="bg-primary/5 text-primary px-3 py-1 rounded-full text-xs">{labels[c] || c}</span>;
-                                                })
-                                              ) : (
-                                                <span className="text-foreground/20">Select Strategic Tour Classifications...</span>
-                                              )}
-                                            </div>
-                                            <ChevronLeft className={`w-4 h-4 text-primary transition-transform duration-500 ${showTourTypeDropdown ? 'rotate-90' : '-rotate-90'}`} />
-                                          </button>
+                                  </div>
+                                  <div className="bg-foreground/[0.01] p-8 rounded-[40px] border border-foreground/5 space-y-6">
+                                    <div className="flex items-center gap-4">
+                                      <input type="checkbox" checked={serviceForm.metadata?.selfDriveAvailable !== false} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, selfDriveAvailable: e.target.checked } })} className="w-6 h-6 rounded-lg accent-primary" />
+                                      <label className="text-xs font-black uppercase tracking-widest text-foreground/60">Self-Drive Permission</label>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
 
-                                          {showTourTypeDropdown && (
-                                            <div className="absolute top-full left-0 right-0 mt-4 p-6 bg-white border border-foreground/[0.05] rounded-[40px] shadow-premium z-[110] space-y-3 animate-fade-in backdrop-blur-xl">
-                                              {[
-                                                { value: "tour", label: "Curated Tour" },
-                                                { value: "expedition", label: "Multi-Day Expedition" },
-                                                { value: "culture", label: "Cultural Experience" },
-                                                { value: "wildlife", label: "Wildlife Safari" },
-                                                { value: "hiking", label: "Hiking & Trekking" },
-                                                { value: "logistics", label: "Logistics & Transport" },
-                                                { value: "niche", label: "Niche Artifact" }
-                                              ].map((opt: any) => {
-                                                const isChecked = Array.isArray(serviceForm.category) && serviceForm.category.includes(opt.value);
-                                                return (
-                                                  <button
-                                                    key={opt.value}
-                                                    type="button"
-                                                    onClick={() => {
-                                                      const current = Array.isArray(serviceForm.category) ? [...serviceForm.category] : [];
-                                                      const next = isChecked ? current.filter(c => c !== opt.value) : [...current, opt.value];
-                                                      setServiceForm({ ...serviceForm, category: next });
-                                                    }}
-                                                    className={`w-full flex items-center justify-between p-4 rounded-[20px] transition-all ${isChecked ? 'bg-primary/5 text-primary' : 'hover:bg-foreground/[0.02] text-foreground/40'}`}
-                                                  >
-                                                    <span className="text-sm font-black uppercase tracking-widest">{opt.label}</span>
-                                                    <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all ${isChecked ? 'bg-primary border-primary' : 'border-foreground/10'}`}>
-                                                      {isChecked && <Check className="w-3 h-3 text-white" />}
-                                                    </div>
-                                                  </button>
-                                                );
-                                              })}
+                            </div>
 
-                                              {/* Add Custom Type Action */}
+                            {/* Full Width Sub-Grid: Governance & Safety */}
+                            <div className="col-span-full grid grid-cols-1 xl:grid-cols-2 gap-12 pt-12 border-t-2 border-foreground/[0.03]">
+                              <div className="space-y-8">
+                                <div className="text-xs font-black uppercase tracking-[0.3em] text-primary border-b border-primary/5 pb-2">Governance & Rental Terms</div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                                  <div className="space-y-3">
+                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Fuel Policy</label>
+                                    <input value={serviceForm.metadata?.fuelPolicy || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, fuelPolicy: e.target.value } })} placeholder="Full-to-Full, Prepaid..." className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none" />
+                                  </div>
+                                  <div className="space-y-3">
+                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Mileage Limit</label>
+                                    <input value={serviceForm.metadata?.mileageLimit || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, mileageLimit: e.target.value } })} placeholder="km/day or Unlimited" className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none" />
+                                  </div>
+                                  <div className="space-y-3 col-span-full">
+                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Usage Restrictions</label>
+                                    <input value={serviceForm.metadata?.notAllowedUses || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, notAllowedUses: e.target.value } })} placeholder="e.g. No Off-road, No Cross-border..." className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none" />
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="space-y-8">
+                                <div className="text-xs font-black uppercase tracking-[0.3em] text-primary border-b border-primary/5 pb-2">Safety & Insurance Framework</div>
+                                <div className="space-y-6 bg-primary/[0.01] p-8 rounded-[40px] border border-primary/5">
+                                  <div className="flex items-center gap-4">
+                                    <input type="checkbox" checked={serviceForm.metadata?.insuranceIncluded || true} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, insuranceIncluded: e.target.checked } })} className="w-6 h-6 rounded-lg accent-primary" />
+                                    <label className="text-xs font-black uppercase tracking-widest text-foreground/60">Insurance Included</label>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-6">
+                                    <div className="space-y-3">
+                                      <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Insurance Type</label>
+                                      <input value={serviceForm.metadata?.insuranceType || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, insuranceType: e.target.value } })} placeholder="Basic / Full Coverage" className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none" />
+                                    </div>
+                                    <div className="space-y-3">
+                                      <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Extra KM Charge</label>
+                                      <input type="number" value={serviceForm.metadata?.extraKmCharge || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, extraKmCharge: e.target.value } })} placeholder="Price/km" className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none" />
+                                    </div>
+                                  </div>
+                                  <div className="space-y-4">
+                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40">Safety Artifacts</label>
+                                    <div className="flex flex-wrap gap-3">
+                                      {["Airbags", "ABS", "Rear Camera"].map(safe => (
+                                        <button
+                                          key={safe}
+                                          type="button"
+                                          onClick={() => {
+                                            const current = serviceForm.metadata?.safetyFeatures || "";
+                                            const next = current.includes(safe) ? current.replace(safe, "").replace(", ,", ",").trim() : `${current}${current ? ', ' : ''}${safe}`;
+                                            setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, safetyFeatures: next } });
+                                          }}
+                                          className={`px-4 py-2 rounded-xl border text-[8px] font-black uppercase tracking-widest transition-all ${serviceForm.metadata?.safetyFeatures?.includes(safe) ? 'bg-primary border-primary text-white' : 'bg-white border-foreground/5 text-foreground/30'}`}
+                                        >
+                                          {safe}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                        )}
+
+                        {/* 8. GENERAL HOTEL SERVICES */}
+                        {selectedSector === "hotel" && Array.isArray(serviceForm.category) && serviceForm.category.includes("general_services") && (
+                          <div className="col-span-full space-y-8 animate-fade-in p-8 rounded-[40px] bg-white border border-foreground/5">
+                            <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary border-b border-primary/10 pb-2 mb-6 ml-2 flex items-center gap-3">
+                              <ShieldCheck className="w-4 h-4" /> Comprehensive General Intelligence
+                            </h5>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Service Type</label>
+                                <input
+                                  value={serviceForm.metadata?.generalServiceType || ""}
+                                  onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, generalServiceType: e.target.value } })}
+                                  className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
+                                  placeholder="Laundry, Concierge, Gift Shop..."
+                                />
+                              </div>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Availability Loop</label>
+                                <div className="relative group/select">
+                                  <select
+                                    value={serviceForm.metadata?.generalAvailability || "24/7"}
+                                    onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, generalAvailability: e.target.value } })}
+                                    className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
+                                  >
+                                    <option value="24/7">24/7 Operations</option>
+                                    <option value="daytime">Daytime Only</option>
+                                    <option value="seasonal">Seasonal Operations</option>
+                                  </select>
+                                  <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
+                                </div>
+                              </div>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Service Price</label>
+                                <input
+                                  type="number"
+                                  value={serviceForm.metadata?.generalServicePrice || 0}
+                                  onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, generalServicePrice: parseFloat(e.target.value) } })}
+                                  className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
+                                />
+                              </div>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Response Time</label>
+                                <input
+                                  value={serviceForm.metadata?.responseTime || ""}
+                                  onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, responseTime: e.target.value } })}
+                                  className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
+                                  placeholder="Instant, < 30 mins, 24 hours..."
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {(selectedSector === "tour_operator" || (Array.isArray(serviceForm.category) && serviceForm.category.includes("tour"))) && (
+                          <div className="col-span-full space-y-16 animate-fade-in relative mt-8 pt-8 border-t border-foreground/[0.05]">
+                            {/* 1. Basic Tour Overview */}
+                            <div className="space-y-6">
+                              <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary/60 border-b border-primary/10 pb-2">1. Basic Tour Overview</h5>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-3">
+                                  <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Expedition Duration</label>
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div className="relative group">
+                                      <div className="absolute top-1/2 -translate-y-1/2 right-6 text-xs font-black text-foreground/20 uppercase tracking-widest pointer-events-none group-focus-within:text-primary transition-colors">Days</div>
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        placeholder="1"
+                                        value={serviceForm.metadata?.durationDays || ""}
+                                        onChange={e => {
+                                          const d = parseInt(e.target.value) || 0;
+                                          setServiceForm({
+                                            ...serviceForm,
+                                            metadata: {
+                                              ...serviceForm.metadata,
+                                              durationDays: d,
+                                              durationNights: serviceForm.metadata?.durationNights || Math.max(0, d - 1)
+                                            }
+                                          });
+                                        }}
+                                        className="w-full bg-white px-8 py-5 rounded-[28px] border border-foreground/5 font-black text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20 appearance-none"
+                                      />
+                                    </div>
+                                    <div className="relative group">
+                                      <div className="absolute top-1/2 -translate-y-1/2 right-6 text-xs font-black text-foreground/20 uppercase tracking-widest pointer-events-none group-focus-within:text-primary transition-colors">Nights</div>
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        placeholder="0"
+                                        value={serviceForm.metadata?.durationNights ?? ""}
+                                        onChange={e => {
+                                          const n = parseInt(e.target.value) || 0;
+                                          setServiceForm({
+                                            ...serviceForm,
+                                            metadata: {
+                                              ...serviceForm.metadata,
+                                              durationNights: n,
+                                              durationDays: serviceForm.metadata?.durationDays || n + 1
+                                            }
+                                          });
+                                        }}
+                                        className="w-full bg-white px-8 py-5 rounded-[28px] border border-foreground/5 font-black text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20 appearance-none"
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-3 px-3 md:px-4 lg:px-5 py-3 bg-primary/[0.03] rounded-2xl border border-primary/5 w-fit">
+                                    <Calendar className="w-3.5 h-3.5 text-primary" />
+                                    <span className="text-xs font-black uppercase tracking-wider text-primary/60">
+                                      Registry Sync: {serviceForm.metadata?.durationDays || 0} Days & {serviceForm.metadata?.durationNights || 0} Nights
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="space-y-3 relative">
+                                  <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Tour Type</label>
+                                  {selectedSector === "tour_operator" ? (
+                                    <div className="relative">
+                                      <button
+                                        type="button"
+                                        onClick={() => setShowTourTypeDropdown(!showTourTypeDropdown)}
+                                        className="w-full bg-white px-8 py-5 rounded-[30px] border border-foreground/5 font-black text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20 flex items-center justify-between"
+                                      >
+                                        <div className="flex flex-wrap gap-2 truncate pr-4">
+                                          {Array.isArray(serviceForm.category) && serviceForm.category.length > 0 ? (
+                                            serviceForm.category.map((c: string) => {
+                                              const labels: any = {
+                                                tour: "Curated Tour", expedition: "Multi-Day Expedition", culture: "Cultural Experience",
+                                                wildlife: "Wildlife Safari", hiking: "Hiking & Trekking", logistics: "Logistics & Transport",
+                                                niche: "Niche Artifact", custom: "Custom Category"
+                                              };
+                                              return <span key={c} className="bg-primary/5 text-primary px-3 py-1 rounded-full text-xs">{labels[c] || c}</span>;
+                                            })
+                                          ) : (
+                                            <span className="text-foreground/20">Select Strategic Tour Classifications...</span>
+                                          )}
+                                        </div>
+                                        <ChevronLeft className={`w-4 h-4 text-primary transition-transform duration-500 ${showTourTypeDropdown ? 'rotate-90' : '-rotate-90'}`} />
+                                      </button>
+
+                                      {showTourTypeDropdown && (
+                                        <div className="absolute top-full left-0 right-0 mt-4 p-6 bg-white border border-foreground/[0.05] rounded-[40px] shadow-premium z-[110] space-y-3 animate-fade-in backdrop-blur-xl">
+                                          {[
+                                            { value: "tour", label: "Curated Tour" },
+                                            { value: "expedition", label: "Multi-Day Expedition" },
+                                            { value: "culture", label: "Cultural Experience" },
+                                            { value: "wildlife", label: "Wildlife Safari" },
+                                            { value: "hiking", label: "Hiking & Trekking" },
+                                            { value: "logistics", label: "Logistics & Transport" },
+                                            { value: "niche", label: "Niche Artifact" }
+                                          ].map((opt: any) => {
+                                            const isChecked = Array.isArray(serviceForm.category) && serviceForm.category.includes(opt.value);
+                                            return (
                                               <button
+                                                key={opt.value}
                                                 type="button"
                                                 onClick={() => {
-                                                  const isRemoving = isAddingCustomCategory;
-                                                  setIsAddingCustomCategory(!isRemoving);
-                                                  setShowTourTypeDropdown(false);
-
                                                   const current = Array.isArray(serviceForm.category) ? [...serviceForm.category] : [];
-                                                  if (!isRemoving) {
-                                                    // When adding, ensure 'tour' is present so form fields show up
-                                                    const next = Array.from(new Set([...current, "tour", "custom"]));
-                                                    setServiceForm({ ...serviceForm, category: next });
-                                                  } else {
-                                                    // When removing, just remove the 'custom' tag
-                                                    setServiceForm({ ...serviceForm, category: current.filter(c => c !== 'custom') });
-                                                  }
+                                                  const next = isChecked ? current.filter(c => c !== opt.value) : [...current, opt.value];
+                                                  setServiceForm({ ...serviceForm, category: next });
                                                 }}
-                                                className={`w-full flex items-center justify-between p-4 rounded-[20px] transition-all border-2 border-dashed ${isAddingCustomCategory ? 'bg-foreground text-background border-foreground shadow-lg' : 'border-foreground/5 text-foreground/40 hover:border-primary/20 hover:bg-white'}`}
+                                                className={`w-full flex items-center justify-between p-4 rounded-[20px] transition-all ${isChecked ? 'bg-primary/5 text-primary' : 'hover:bg-foreground/[0.02] text-foreground/40'}`}
                                               >
-                                                <span className="text-sm font-black uppercase tracking-widest">{isAddingCustomCategory ? 'Modify Custom Type' : 'Add Custom Type'}</span>
-                                                <Plus className={`w-4 h-4 transition-all ${isAddingCustomCategory ? 'rotate-45' : ''}`} />
+                                                <span className="text-sm font-black uppercase tracking-widest">{opt.label}</span>
+                                                <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all ${isChecked ? 'bg-primary border-primary' : 'border-foreground/10'}`}>
+                                                  {isChecked && <Check className="w-3 h-3 text-white" />}
+                                                </div>
                                               </button>
-                                            </div>
-                                          )}
+                                            );
+                                          })}
 
-                                          {isAddingCustomCategory && (
-                                            <div className="mt-8 animate-slide-up relative group">
-                                              <div className="absolute -top-3 left-8 px-3 bg-white text-[9px] font-black uppercase tracking-[0.3em] text-primary z-20">Custom Type Descriptor</div>
-                                              <input
-                                                value={serviceForm.customCategory || ""}
-                                                onChange={(e) => setServiceForm({ ...serviceForm, customCategory: e.target.value })}
-                                                placeholder="Traditional Coffee Ceremony, Luxury Helicopter Tour..."
-                                                className="w-full px-8 py-6 bg-foreground/[0.01] border border-foreground/[0.05] rounded-[28px] font-black text-sm outline-none ring-primary/5 focus:ring-8 focus:bg-white focus:border-primary/20 transition-all placeholder:text-foreground/5"
-                                              />
-                                            </div>
-                                          )}
-                                        </div>
-                                      ) : (
-                                        <input required value={serviceForm.metadata?.tourType || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, tourType: e.target.value } })} placeholder="Adventure, Cultural, Luxury..." className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20" />
-                                      )}
-                                    </div>
-                                    <div className="space-y-3 md:col-span-2">
-                                      <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Destination(s)</label>
-                                      <input required value={serviceForm.metadata?.destinations || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, destinations: e.target.value } })} placeholder="Cities, regions, landmarks" className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20" />
-                                    </div>
-                                  </div>
-                                </div>
+                                          {/* Add Custom Type Action */}
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const isRemoving = isAddingCustomCategory;
+                                              setIsAddingCustomCategory(!isRemoving);
+                                              setShowTourTypeDropdown(false);
 
-                                {/* 2. Pricing & Included */}
-                                <div className="space-y-6">
-                                  <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary/60 border-b border-primary/10 pb-2">2. Pricing & What's Included</h5>
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-3">
-                                        <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Pricing Type</label>
-                                        <div className="relative group/select">
-                                          <select
-                                            value={serviceForm.metadata?.pricingType || "Per Person"}
-                                            onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, pricingType: e.target.value } })}
-                                            className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none cursor-pointer focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20 appearance-none pr-12"
+                                              const current = Array.isArray(serviceForm.category) ? [...serviceForm.category] : [];
+                                              if (!isRemoving) {
+                                                // When adding, ensure 'tour' is present so form fields show up
+                                                const next = Array.from(new Set([...current, "tour", "custom"]));
+                                                setServiceForm({ ...serviceForm, category: next });
+                                              } else {
+                                                // When removing, just remove the 'custom' tag
+                                                setServiceForm({ ...serviceForm, category: current.filter(c => c !== 'custom') });
+                                              }
+                                            }}
+                                            className={`w-full flex items-center justify-between p-4 rounded-[20px] transition-all border-2 border-dashed ${isAddingCustomCategory ? 'bg-foreground text-background border-foreground shadow-lg' : 'border-foreground/5 text-foreground/40 hover:border-primary/20 hover:bg-white'}`}
                                           >
-                                            <option value="Per Person">Per Person</option>
-                                            <option value="Per Group">Per Group</option>
-                                          </select>
-                                          <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
+                                            <span className="text-sm font-black uppercase tracking-widest">{isAddingCustomCategory ? 'Modify Custom Type' : 'Add Custom Type'}</span>
+                                            <Plus className={`w-4 h-4 transition-all ${isAddingCustomCategory ? 'rotate-45' : ''}`} />
+                                          </button>
                                         </div>
-                                      </div>
-                                      <div className="space-y-3">
-                                        <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Maximum Capacity</label>
-                                        <input
-                                          type="number"
-                                          value={serviceForm.availability?.quantity || 1}
-                                          onChange={e => setServiceForm({ ...serviceForm, availability: { ...serviceForm.availability, quantity: parseInt(e.target.value) || 1 } })}
-                                          className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20"
-                                        />
-                                      </div>
-                                    <div className="md:col-span-2 space-y-4">
-                                      <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Inclusion Inventory (Standard Artifacts)</label>
-                                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                                        {[
-                                          { key: "meals", label: "Meals", icon: "🍽️" },
-                                          { key: "transport", label: "Transport", icon: "🚐" },
-                                          { key: "guide", label: "Guide", icon: "👤" },
-                                          { key: "insurance", label: "Insurance", icon: "🛡️" },
-                                          { key: "accommodation", label: "Stay", icon: "🏨" },
-                                          { key: "equipment", label: "Gear", icon: "⛺" }
-                                        ].map((item) => {
-                                          const isIncluded = serviceForm.metadata?.inclusionMatrix?.[item.key];
-                                          return (
-                                            <button
-                                              key={item.key}
-                                              type="button"
-                                              onClick={() => setServiceForm({
-                                                ...serviceForm,
-                                                metadata: {
-                                                  ...serviceForm.metadata,
-                                                  inclusionMatrix: {
-                                                    ...(serviceForm.metadata?.inclusionMatrix || {}),
-                                                    [item.key]: !isIncluded
-                                                  }
-                                                }
-                                              })}
-                                              className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${isIncluded ? 'bg-primary/5 border-primary/20 text-primary shadow-sm' : 'bg-white border-foreground/5 text-foreground/30 hover:border-foreground/10'}`}
-                                            >
-                                              <span className="text-lg">{item.icon}</span>
-                                              <span className="text-xs font-black uppercase tracking-widest">{item.label}</span>
-                                              {isIncluded && <Check className="w-3 h-3 ml-auto" />}
-                                            </button>
-                                          );
-                                        })}
-                                      </div>
-                                    </div>
-                                    <div className="space-y-3 md:col-span-2">
-                                      <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Specific Inclusions / Extra Details</label>
-                                      <input required value={serviceForm.metadata?.included || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, included: e.target.value } })} placeholder="e.g. Park entrance fees, tent, local airfare..." className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20" />
-                                    </div>
-                                    <div className="space-y-3 md:col-span-2">
-                                      <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">NOT Included</label>
-                                      <input required value={serviceForm.metadata?.notIncluded || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, notIncluded: e.target.value } })} placeholder="Flights, Personal expenses..." className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20" />
-                                    </div>
-                                  </div>
-                                </div>
+                                      )}
 
-                                {/* 3. Departure & Logistics */}
-                                <div className="space-y-6">
-                                  <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary/60 border-b border-primary/10 pb-2">3. Departure Details</h5>
-                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                    <div className="space-y-3 lg:col-span-2">
-                                      <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Start Location</label>
-                                      <input required value={serviceForm.metadata?.startLocation || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, startLocation: e.target.value } })} placeholder="Exact starting place" className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20" />
-                                    </div>
-                                    <div className="space-y-3 lg:col-span-2">
-                                      <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Departure Date (Official Commencement)</label>
-                                      <input
-                                        required
-                                        type="date"
-                                        min={new Date().toISOString().split('T')[0]}
-                                        value={serviceForm.metadata?.departureDates || ""}
-                                        onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, departureDates: e.target.value } })}
-                                        className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20"
-                                      />
-                                      {serviceForm.metadata?.departureDates && new Date(serviceForm.metadata.departureDates) < new Date(new Date().setHours(0, 0, 0, 0)) && (
-                                        <div className="mt-2 text-xs font-bold text-red-500 italic px-4">
-                                          ⚠ Temporal Exception: Departure date must be in the future.
+                                      {isAddingCustomCategory && (
+                                        <div className="mt-8 animate-slide-up relative group">
+                                          <div className="absolute -top-3 left-8 px-3 bg-white text-[9px] font-black uppercase tracking-[0.3em] text-primary z-20">Custom Type Descriptor</div>
+                                          <input
+                                            value={serviceForm.customCategory || ""}
+                                            onChange={(e) => setServiceForm({ ...serviceForm, customCategory: e.target.value })}
+                                            placeholder="Traditional Coffee Ceremony, Luxury Helicopter Tour..."
+                                            className="w-full px-8 py-6 bg-foreground/[0.01] border border-foreground/[0.05] rounded-[28px] font-black text-sm outline-none ring-primary/5 focus:ring-8 focus:bg-white focus:border-primary/20 transition-all placeholder:text-foreground/5"
+                                          />
                                         </div>
                                       )}
                                     </div>
-                                    <div className="space-y-3 lg:col-span-2">
-                                      <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Min Group Size</label>
-                                      <input required type="number" value={serviceForm.metadata?.minGroupSize || 1} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, minGroupSize: parseInt(e.target.value) || 1 } })} className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20" />
-                                    </div>
-                                    <div className="space-y-3 lg:col-span-2">
-                                      <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Max Group Size</label>
-                                      <input required type="number" value={serviceForm.metadata?.maxGroupSize || 10} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, maxGroupSize: parseInt(e.target.value) || 10 } })} className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20" />
-                                    </div>
+                                  ) : (
+                                    <input required value={serviceForm.metadata?.tourType || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, tourType: e.target.value } })} placeholder="Adventure, Cultural, Luxury..." className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20" />
+                                  )}
+                                </div>
+                                <div className="space-y-3 md:col-span-2">
+                                  <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Destination(s)</label>
+                                  <input required value={serviceForm.metadata?.destinations || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, destinations: e.target.value } })} placeholder="Cities, regions, landmarks" className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20" />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* 2. Pricing & Included */}
+                            <div className="space-y-6">
+                              <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary/60 border-b border-primary/10 pb-2">2. Pricing & What's Included</h5>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-3">
+                                  <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Pricing Type</label>
+                                  <div className="relative group/select">
+                                    <select
+                                      value={serviceForm.metadata?.pricingType || "Per Person"}
+                                      onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, pricingType: e.target.value } })}
+                                      className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none cursor-pointer focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20 appearance-none pr-12"
+                                    >
+                                      <option value="Per Person">Per Person</option>
+                                      <option value="Per Group">Per Group</option>
+                                    </select>
+                                    <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
                                   </div>
                                 </div>
-
-                                {/* 4. Infrastructure */}
-                                <div className="space-y-6">
-                                  <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary/60 border-b border-primary/10 pb-2">4. Accommodation & Transport</h5>
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-3">
-                                      <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Accommodation Type</label>
-                                      <input required value={serviceForm.metadata?.accommodationType || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, accommodationType: e.target.value } })} placeholder="Budget, mid-range, luxury" className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20" />
-                                    </div>
-                                    <div className="space-y-3">
-                                      <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Room Specs & Amenities</label>
-                                      <input required value={serviceForm.metadata?.accommodationAmenities || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, accommodationAmenities: e.target.value } })} placeholder="Shared/Private, WiFi..." className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20" />
-                                    </div>
-                                    <div className="space-y-3">
-                                      <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Transport Protocol</label>
-                                      <input required value={serviceForm.metadata?.transportType || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, transportType: e.target.value } })} placeholder="Minibus, SUV, Flight..." className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20" />
-                                    </div>
-                                    <div className="space-y-3">
-                                      <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Transport Condition</label>
-                                      <input required value={serviceForm.metadata?.transportCondition || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, transportCondition: e.target.value } })} placeholder="AC, comfort level" className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20" />
-                                    </div>
-                                  </div>
+                                <div className="space-y-3">
+                                  <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Maximum Capacity</label>
+                                  <input
+                                    type="number"
+                                    value={serviceForm.availability?.quantity || 1}
+                                    onChange={e => setServiceForm({ ...serviceForm, availability: { ...serviceForm.availability, quantity: parseInt(e.target.value) || 1 } })}
+                                    className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20"
+                                  />
                                 </div>
-
-                                {/* 5. Requirements & Safety */}
-                                <div className="space-y-6">
-                                  <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary/60 border-b border-primary/10 pb-2">5. Requirements & Safety Info</h5>
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-3">
-                                      <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Fitness Level</label>
-                                      <div className="relative group/select">
-                                        <select
-                                          value={serviceForm.metadata?.fitnessLevel || "Basic"}
-                                          onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, fitnessLevel: e.target.value } })}
-                                          className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none cursor-pointer focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20 appearance-none pr-12"
+                                <div className="md:col-span-2 space-y-4">
+                                  <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Inclusion Inventory (Standard Artifacts)</label>
+                                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                    {[
+                                      { key: "meals", label: "Meals", icon: "🍽️" },
+                                      { key: "transport", label: "Transport", icon: "🚐" },
+                                      { key: "guide", label: "Guide", icon: "👤" },
+                                      { key: "insurance", label: "Insurance", icon: "🛡️" },
+                                      { key: "accommodation", label: "Stay", icon: "🏨" },
+                                      { key: "equipment", label: "Gear", icon: "⛺" }
+                                    ].map((item) => {
+                                      const isIncluded = serviceForm.metadata?.inclusionMatrix?.[item.key];
+                                      return (
+                                        <button
+                                          key={item.key}
+                                          type="button"
+                                          onClick={() => setServiceForm({
+                                            ...serviceForm,
+                                            metadata: {
+                                              ...serviceForm.metadata,
+                                              inclusionMatrix: {
+                                                ...(serviceForm.metadata?.inclusionMatrix || {}),
+                                                [item.key]: !isIncluded
+                                              }
+                                            }
+                                          })}
+                                          className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${isIncluded ? 'bg-primary/5 border-primary/20 text-primary shadow-sm' : 'bg-white border-foreground/5 text-foreground/30 hover:border-foreground/10'}`}
                                         >
-                                          <option value="Basic">Basic / Leisure</option>
-                                          <option value="Moderate">Moderate / Active</option>
-                                          <option value="Advanced">Advanced / Elite</option>
-                                        </select>
-                                        <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
-                                      </div>
-                                    </div>
-                                    <div className="space-y-3">
-                                      <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Required Documents</label>
-                                      <input required value={serviceForm.metadata?.requiredDocuments || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, requiredDocuments: e.target.value } })} placeholder="Passport, Visa..." className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20" />
-                                    </div>
-                                    <div className="space-y-3 md:col-span-2">
-                                      <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Emergency Contact & Safety</label>
-                                      <input required value={serviceForm.metadata?.emergencyContact || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, emergencyContact: e.target.value } })} placeholder="Emergency numbers, guide qualifications" className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20" />
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* 6. Policy & Standing Out */}
-                                <div className="space-y-6">
-                                  <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary/60 border-b border-primary/10 pb-2">6. Policy & Extra Value</h5>
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-3">
-                                      <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Official Cancellation Deadline Date</label>
-                                      <input required type="date" value={serviceForm.metadata?.cancellationDeadline || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, cancellationDeadline: e.target.value } })} className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20" />
-                                      {serviceForm.metadata?.departureDates && serviceForm.metadata?.cancellationDeadline &&
-                                        new Date(serviceForm.metadata.cancellationDeadline) > new Date(serviceForm.metadata.departureDates) && (
-                                          <div className="mt-2 text-xs font-bold text-red-500 italic px-4 animate-pulse">
-                                            ⚠ Policy Exception: Cancellation deadline cannot fall after the commencement date.
-                                          </div>
-                                        )}
-                                    </div>
-                                    <div className="space-y-3">
-                                      <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Value Proposition</label>
-                                      <input required value={serviceForm.metadata?.uniqueExperiences || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, uniqueExperiences: e.target.value } })} placeholder="Unique experiences, bonuses" className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20" />
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* 7. Detailed Itinerary Builder */}
-                                <div className="space-y-6 mt-8 pt-8 border-t border-foreground/10">
-                                  <div className="flex items-center justify-between">
-                                    <h5 className="text-sm font-black uppercase tracking-[0.4em] text-primary">
-                                      {(() => {
-                                        const categories = Array.isArray(serviceForm.category) ? serviceForm.category : [];
-                                        if (categories.includes("culture")) return "7. Cultural Experience Itinerary";
-                                        if (categories.includes("expedition")) return "7. Detailed Expedition Itinerary";
-                                        if (categories.includes("hiking")) return "7. Trekking & Hiking Itinerary";
-                                        if (categories.includes("wildlife")) return "7. Wildlife Safari Sequence";
-                                        if (categories.includes("custom") && serviceForm.customCategory) return `7. ${serviceForm.customCategory} Itinerary`;
-                                        return "7. Detailed Strategic Itinerary";
-                                      })()}
-                                    </h5>
-                                    <button type="button" onClick={handleAddItineraryDay} className="flex items-center gap-2 px-3 md:px-4 lg:px-5 py-3 bg-primary text-white text-[9px] font-black uppercase tracking-widest rounded-full hover:bg-primary/90 transition-all shadow-xl shadow-primary/20">
-                                      <Plus className="w-3 h-3" /> Add Day
-                                    </button>
-                                  </div>
-                                  <div className="space-y-6">
-                                    {(serviceForm.metadata?.itinerary || []).map((day: any, idx: number) => (
-                                      <div key={idx} className="p-8 bg-white border border-foreground/5 rounded-[30px] shadow-sm relative group transition-all hover:border-primary/20">
-                                        <button type="button" onClick={() => handleRemoveItineraryDay(idx)} className="absolute top-6 right-6 w-10 h-10 flex items-center justify-center bg-red-500/10 text-red-500 rounded-full hover:bg-red-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 shadow-lg">
-                                          <Trash2 className="w-4 h-4" />
+                                          <span className="text-lg">{item.icon}</span>
+                                          <span className="text-xs font-black uppercase tracking-widest">{item.label}</span>
+                                          {isIncluded && <Check className="w-3 h-3 ml-auto" />}
                                         </button>
-                                        <div className="mb-6 flex items-center gap-3">
-                                          <span className="px-4 py-1.5 bg-foreground/5 rounded-full text-xs font-black uppercase tracking-[0.2em] text-foreground/40 border border-foreground/10">Day {day.day}</span>
-                                        </div>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                          <div className="space-y-3">
-                                            <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-2">Activities / Locations</label>
-                                            <input required value={day.activities || ""} onChange={e => handleUpdateItineraryDay(idx, "activities", e.target.value)} placeholder="Main events, sights..." className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-xs outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/20 transition-all" />
-                                          </div>
-                                          <div className="space-y-3">
-                                            <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-2">Overnight Stay</label>
-                                            <input required value={day.overnightStay || ""} onChange={e => handleUpdateItineraryDay(idx, "overnightStay", e.target.value)} placeholder="Hotel, Lodge, Camping..." className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-xs outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/20 transition-all" />
-                                          </div>
-                                          <div className="space-y-3 md:col-span-2">
-                                            <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-2">Timing / Sequence</label>
-                                            <input required value={day.timing || ""} onChange={e => handleUpdateItineraryDay(idx, "timing", e.target.value)} placeholder="08:00 AM - Departure, 12:00 PM - Lunch..." className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-xs outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/20 transition-all" />
-                                          </div>
-                                        </div>
-                                      </div>
-                                    ))}
-                                    {(!serviceForm.metadata?.itinerary || serviceForm.metadata.itinerary.length === 0) && (
-                                      <div className="text-center py-12 px-3 md:px-4 lg:px-5 border-2 border-dashed border-foreground/5 rounded-[40px] bg-foreground/[0.01]">
-                                        <Compass className="w-10 h-10 text-foreground/10 mx-auto mb-4" />
-                                        <p className="text-xs font-black uppercase tracking-widest text-foreground/30">No Itinerary Days Segmented</p>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                                <div className="space-y-3 md:col-span-2">
+                                  <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Specific Inclusions / Extra Details</label>
+                                  <input required value={serviceForm.metadata?.included || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, included: e.target.value } })} placeholder="e.g. Park entrance fees, tent, local airfare..." className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20" />
+                                </div>
+                                <div className="space-y-3 md:col-span-2">
+                                  <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">NOT Included</label>
+                                  <input required value={serviceForm.metadata?.notIncluded || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, notIncluded: e.target.value } })} placeholder="Flights, Personal expenses..." className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20" />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* 3. Departure & Logistics */}
+                            <div className="space-y-6">
+                              <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary/60 border-b border-primary/10 pb-2">3. Departure Details</h5>
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                <div className="space-y-3 lg:col-span-2">
+                                  <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Start Location</label>
+                                  <input required value={serviceForm.metadata?.startLocation || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, startLocation: e.target.value } })} placeholder="Exact starting place" className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20" />
+                                </div>
+                                <div className="space-y-3 lg:col-span-2">
+                                  <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Departure Date (Official Commencement)</label>
+                                  <input
+                                    required
+                                    type="date"
+                                    min={new Date().toISOString().split('T')[0]}
+                                    value={serviceForm.metadata?.departureDates || ""}
+                                    onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, departureDates: e.target.value } })}
+                                    className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20"
+                                  />
+                                  {serviceForm.metadata?.departureDates && new Date(serviceForm.metadata.departureDates) < new Date(new Date().setHours(0, 0, 0, 0)) && (
+                                    <div className="mt-2 text-xs font-bold text-red-500 italic px-4">
+                                      ⚠ Temporal Exception: Departure date must be in the future.
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="space-y-3 lg:col-span-2">
+                                  <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Min Group Size</label>
+                                  <input required type="number" value={serviceForm.metadata?.minGroupSize || 1} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, minGroupSize: parseInt(e.target.value) || 1 } })} className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20" />
+                                </div>
+                                <div className="space-y-3 lg:col-span-2">
+                                  <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Max Group Size</label>
+                                  <input required type="number" value={serviceForm.metadata?.maxGroupSize || 10} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, maxGroupSize: parseInt(e.target.value) || 10 } })} className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20" />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* 4. Infrastructure */}
+                            <div className="space-y-6">
+                              <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary/60 border-b border-primary/10 pb-2">4. Accommodation & Transport</h5>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-3">
+                                  <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Accommodation Type</label>
+                                  <input required value={serviceForm.metadata?.accommodationType || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, accommodationType: e.target.value } })} placeholder="Budget, mid-range, luxury" className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20" />
+                                </div>
+                                <div className="space-y-3">
+                                  <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Room Specs & Amenities</label>
+                                  <input required value={serviceForm.metadata?.accommodationAmenities || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, accommodationAmenities: e.target.value } })} placeholder="Shared/Private, WiFi..." className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20" />
+                                </div>
+                                <div className="space-y-3">
+                                  <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Transport Protocol</label>
+                                  <input required value={serviceForm.metadata?.transportType || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, transportType: e.target.value } })} placeholder="Minibus, SUV, Flight..." className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20" />
+                                </div>
+                                <div className="space-y-3">
+                                  <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Transport Condition</label>
+                                  <input required value={serviceForm.metadata?.transportCondition || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, transportCondition: e.target.value } })} placeholder="AC, comfort level" className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20" />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* 5. Requirements & Safety */}
+                            <div className="space-y-6">
+                              <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary/60 border-b border-primary/10 pb-2">5. Requirements & Safety Info</h5>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-3">
+                                  <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Fitness Level</label>
+                                  <div className="relative group/select">
+                                    <select
+                                      value={serviceForm.metadata?.fitnessLevel || "Basic"}
+                                      onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, fitnessLevel: e.target.value } })}
+                                      className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none cursor-pointer focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20 appearance-none pr-12"
+                                    >
+                                      <option value="Basic">Basic / Leisure</option>
+                                      <option value="Moderate">Moderate / Active</option>
+                                      <option value="Advanced">Advanced / Elite</option>
+                                    </select>
+                                    <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
+                                  </div>
+                                </div>
+                                <div className="space-y-3">
+                                  <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Required Documents</label>
+                                  <input required value={serviceForm.metadata?.requiredDocuments || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, requiredDocuments: e.target.value } })} placeholder="Passport, Visa..." className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20" />
+                                </div>
+                                <div className="space-y-3 md:col-span-2">
+                                  <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Emergency Contact & Safety</label>
+                                  <input required value={serviceForm.metadata?.emergencyContact || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, emergencyContact: e.target.value } })} placeholder="Emergency numbers, guide qualifications" className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20" />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* 6. Policy & Standing Out */}
+                            <div className="space-y-6">
+                              <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary/60 border-b border-primary/10 pb-2">6. Policy & Extra Value</h5>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-3">
+                                  <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Official Cancellation Deadline Date</label>
+                                  <input required type="date" value={serviceForm.metadata?.cancellationDeadline || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, cancellationDeadline: e.target.value } })} className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20" />
+                                  {serviceForm.metadata?.departureDates && serviceForm.metadata?.cancellationDeadline &&
+                                    new Date(serviceForm.metadata.cancellationDeadline) > new Date(serviceForm.metadata.departureDates) && (
+                                      <div className="mt-2 text-xs font-bold text-red-500 italic px-4 animate-pulse">
+                                        ⚠ Policy Exception: Cancellation deadline cannot fall after the commencement date.
                                       </div>
                                     )}
-                                  </div>
+                                </div>
+                                <div className="space-y-3">
+                                  <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Value Proposition</label>
+                                  <input required value={serviceForm.metadata?.uniqueExperiences || ""} onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, uniqueExperiences: e.target.value } })} placeholder="Unique experiences, bonuses" className="w-full bg-white px-3 md:px-4 lg:px-5 py-4 rounded-3xl border border-foreground/5 font-bold text-sm outline-none focus:ring-8 focus:ring-primary/5 transition-all focus:border-primary/20" />
                                 </div>
                               </div>
-                            )}
+                            </div>
 
-                            {/* ========================================== */}
-                            {/* EVENT ORGANIZER DETAILS */}
-                            {/* ========================================== */}
-                            
-                            {/* EVENT VENUE */}
-                            {selectedSector === "event_organizer" && Array.isArray(serviceForm.category) && serviceForm.category.includes("venue") && (
-                              <div className="col-span-full space-y-10 animate-fade-in p-8 rounded-[40px] bg-white border border-foreground/5 relative overflow-hidden group/venue">
-                                <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary flex items-center gap-3">
-                                  <Box className="w-4 h-4" /> Event Venue Intelligence
+                            {/* 7. Detailed Itinerary Builder */}
+                            <div className="space-y-6 mt-8 pt-8 border-t border-foreground/10">
+                              <div className="flex items-center justify-between">
+                                <h5 className="text-sm font-black uppercase tracking-[0.4em] text-primary">
+                                  {(() => {
+                                    const categories = Array.isArray(serviceForm.category) ? serviceForm.category : [];
+                                    if (categories.includes("culture")) return "7. Cultural Experience Itinerary";
+                                    if (categories.includes("expedition")) return "7. Detailed Expedition Itinerary";
+                                    if (categories.includes("hiking")) return "7. Trekking & Hiking Itinerary";
+                                    if (categories.includes("wildlife")) return "7. Wildlife Safari Sequence";
+                                    if (categories.includes("custom") && serviceForm.customCategory) return `7. ${serviceForm.customCategory} Itinerary`;
+                                    return "7. Detailed Strategic Itinerary";
+                                  })()}
                                 </h5>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Space Type</label>
-                                    <div className="relative group/select">
-                                      <select
-                                        value={serviceForm.metadata?.spaceType || "indoor"}
-                                        onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, spaceType: e.target.value } })}
-                                        className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
-                                      >
-                                        <option value="indoor">Indoor Hall</option>
-                                        <option value="outdoor">Outdoor / Garden</option>
-                                        <option value="rooftop">Rooftop Terrace</option>
-                                        <option value="mixed">Mixed Indoor & Outdoor</option>
-                                      </select>
-                                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
+                                <button type="button" onClick={handleAddItineraryDay} className="flex items-center gap-2 px-3 md:px-4 lg:px-5 py-3 bg-primary text-white text-[9px] font-black uppercase tracking-widest rounded-full hover:bg-primary/90 transition-all shadow-xl shadow-primary/20">
+                                  <Plus className="w-3 h-3" /> Add Day
+                                </button>
+                              </div>
+                              <div className="space-y-6">
+                                {(serviceForm.metadata?.itinerary || []).map((day: any, idx: number) => (
+                                  <div key={idx} className="p-8 bg-white border border-foreground/5 rounded-[30px] shadow-sm relative group transition-all hover:border-primary/20">
+                                    <button type="button" onClick={() => handleRemoveItineraryDay(idx)} className="absolute top-6 right-6 w-10 h-10 flex items-center justify-center bg-red-500/10 text-red-500 rounded-full hover:bg-red-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 shadow-lg">
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                    <div className="mb-6 flex items-center gap-3">
+                                      <span className="px-4 py-1.5 bg-foreground/5 rounded-full text-xs font-black uppercase tracking-[0.2em] text-foreground/40 border border-foreground/10">Day {day.day}</span>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                      <div className="space-y-3">
+                                        <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-2">Activities / Locations</label>
+                                        <input required value={day.activities || ""} onChange={e => handleUpdateItineraryDay(idx, "activities", e.target.value)} placeholder="Main events, sights..." className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-xs outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/20 transition-all" />
+                                      </div>
+                                      <div className="space-y-3">
+                                        <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-2">Overnight Stay</label>
+                                        <input required value={day.overnightStay || ""} onChange={e => handleUpdateItineraryDay(idx, "overnightStay", e.target.value)} placeholder="Hotel, Lodge, Camping..." className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-xs outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/20 transition-all" />
+                                      </div>
+                                      <div className="space-y-3 md:col-span-2">
+                                        <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-2">Timing / Sequence</label>
+                                        <input required value={day.timing || ""} onChange={e => handleUpdateItineraryDay(idx, "timing", e.target.value)} placeholder="08:00 AM - Departure, 12:00 PM - Lunch..." className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-xs outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/20 transition-all" />
+                                      </div>
                                     </div>
                                   </div>
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Maximum Capacity</label>
-                                    <input
-                                      type="number"
-                                      value={serviceForm.metadata?.capacity || 100}
-                                      onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, capacity: e.target.value } })}
-                                      className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
-                                    />
+                                ))}
+                                {(!serviceForm.metadata?.itinerary || serviceForm.metadata.itinerary.length === 0) && (
+                                  <div className="text-center py-12 px-3 md:px-4 lg:px-5 border-2 border-dashed border-foreground/5 rounded-[40px] bg-foreground/[0.01]">
+                                    <Compass className="w-10 h-10 text-foreground/10 mx-auto mb-4" />
+                                    <p className="text-xs font-black uppercase tracking-widest text-foreground/30">No Itinerary Days Segmented</p>
                                   </div>
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Seating Layouts Available</label>
-                                    <input
-                                      value={serviceForm.metadata?.layouts || ""}
-                                      onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, layouts: e.target.value } })}
-                                      className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
-                                      placeholder="Theater, Banquet, Classroom..."
-                                    />
-                                  </div>
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">AV Equipment Included</label>
-                                    <div className="relative group/select">
-                                      <select
-                                        value={serviceForm.metadata?.avIncluded || "no"}
-                                        onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, avIncluded: e.target.value } })}
-                                        className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
-                                      >
-                                        <option value="yes">Yes (Projector, Mic, Sound)</option>
-                                        <option value="no">No (Bring Your Own)</option>
-                                      </select>
-                                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
-                                    </div>
-                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* ========================================== */}
+                        {/* EVENT ORGANIZER DETAILS */}
+                        {/* ========================================== */}
+
+                        {/* EVENT VENUE */}
+                        {selectedSector === "event_organizer" && Array.isArray(serviceForm.category) && serviceForm.category.includes("venue") && (
+                          <div className="col-span-full space-y-10 animate-fade-in p-8 rounded-[40px] bg-white border border-foreground/5 relative overflow-hidden group/venue">
+                            <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary flex items-center gap-3">
+                              <Box className="w-4 h-4" /> Event Venue Intelligence
+                            </h5>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Space Type</label>
+                                <div className="relative group/select">
+                                  <select
+                                    value={serviceForm.metadata?.spaceType || "indoor"}
+                                    onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, spaceType: e.target.value } })}
+                                    className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
+                                  >
+                                    <option value="indoor">Indoor Hall</option>
+                                    <option value="outdoor">Outdoor / Garden</option>
+                                    <option value="rooftop">Rooftop Terrace</option>
+                                    <option value="mixed">Mixed Indoor & Outdoor</option>
+                                  </select>
+                                  <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
                                 </div>
                               </div>
-                            )}
-
-                            {/* CATERING */}
-                            {(selectedSector === "event_organizer" || selectedSector === "restaurant") && Array.isArray(serviceForm.category) && serviceForm.category.includes("catering") && (
-                              <div className="col-span-full space-y-10 animate-fade-in p-8 rounded-[40px] bg-white border border-foreground/5 relative overflow-hidden group/catering">
-                                <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary flex items-center gap-3">
-                                  <Utensils className="w-4 h-4" /> Catering & Culinary Intelligence
-                                </h5>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Menu Archetype</label>
-                                    <input
-                                      value={serviceForm.metadata?.menuType || ""}
-                                      onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, menuType: e.target.value } })}
-                                      className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
-                                      placeholder="Buffet, Plated 3-Course, Cocktail Canapés..."
-                                    />
-                                  </div>
-
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Maximum Capacity</label>
-                                    <input
-                                      type="number"
-                                      value={serviceForm.metadata?.capacity || 100}
-                                      onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, capacity: e.target.value } })}
-                                      className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
-                                    />
-                                  </div>
-
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Service Staff Included</label>
-                                    <div className="relative group/select">
-                                      <select
-                                        value={serviceForm.metadata?.staffIncluded || "yes"}
-                                        onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, staffIncluded: e.target.value } })}
-                                        className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
-                                      >
-                                        <option value="yes">Waiters & Servers Included</option>
-                                        <option value="no">Food Drop-off Only</option>
-                                      </select>
-                                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
-                                    </div>
-                                  </div>
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Dietary Options</label>
-                                    <input
-                                      value={serviceForm.metadata?.dietary || ""}
-                                      onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, dietary: e.target.value } })}
-                                      className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
-                                      placeholder="Vegan, Fasting (Tsom), Gluten-Free..."
-                                    />
-                                  </div>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Maximum Capacity</label>
+                                <input
+                                  type="number"
+                                  value={serviceForm.metadata?.capacity || 100}
+                                  onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, capacity: e.target.value } })}
+                                  className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
+                                />
+                              </div>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Seating Layouts Available</label>
+                                <input
+                                  value={serviceForm.metadata?.layouts || ""}
+                                  onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, layouts: e.target.value } })}
+                                  className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
+                                  placeholder="Theater, Banquet, Classroom..."
+                                />
+                              </div>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">AV Equipment Included</label>
+                                <div className="relative group/select">
+                                  <select
+                                    value={serviceForm.metadata?.avIncluded || "no"}
+                                    onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, avIncluded: e.target.value } })}
+                                    className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
+                                  >
+                                    <option value="yes">Yes (Projector, Mic, Sound)</option>
+                                    <option value="no">No (Bring Your Own)</option>
+                                  </select>
+                                  <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
                                 </div>
                               </div>
-                            )}
+                            </div>
+                          </div>
+                        )}
 
-                            {/* CORPORATE MEETING */}
-                            {selectedSector === "event_organizer" && Array.isArray(serviceForm.category) && serviceForm.category.includes("corporate") && (
-                              <div className="col-span-full space-y-10 animate-fade-in p-8 rounded-[40px] bg-white border border-foreground/5 relative overflow-hidden group/corporate">
-                                <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary flex items-center gap-3">
-                                  <Briefcase className="w-4 h-4" /> Corporate Meeting Intelligence
-                                </h5>
+                        {/* CATERING */}
+                        {(selectedSector === "event_organizer" || selectedSector === "restaurant") && Array.isArray(serviceForm.category) && serviceForm.category.includes("catering") && (
+                          <div className="col-span-full space-y-10 animate-fade-in p-8 rounded-[40px] bg-white border border-foreground/5 relative overflow-hidden group/catering">
+                            <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary flex items-center gap-3">
+                              <Utensils className="w-4 h-4" /> Catering & Culinary Intelligence
+                            </h5>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Meeting Format</label>
-                                    <div className="relative group/select">
-                                      <select
-                                        value={serviceForm.metadata?.meetingFormat || "boardroom"}
-                                        onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, meetingFormat: e.target.value } })}
-                                        className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
-                                      >
-                                        <option value="boardroom">Boardroom</option>
-                                        <option value="seminar">Seminar / Workshop</option>
-                                        <option value="conference">Large Conference</option>
-                                      </select>
-                                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
-                                    </div>
-                                  </div>
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Business Amenities Included</label>
-                                    <input
-                                      value={serviceForm.metadata?.businessAmenities || ""}
-                                      onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, businessAmenities: e.target.value } })}
-                                      className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
-                                      placeholder="High-Speed Wi-Fi, Print Station, Whiteboards..."
-                                    />
-                                  </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Menu Archetype</label>
+                                <input
+                                  value={serviceForm.metadata?.menuType || ""}
+                                  onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, menuType: e.target.value } })}
+                                  className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
+                                  placeholder="Buffet, Plated 3-Course, Cocktail Canapés..."
+                                />
+                              </div>
 
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Maximum Capacity</label>
-                                    <input
-                                      type="number"
-                                      value={serviceForm.metadata?.capacity || 100}
-                                      onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, capacity: e.target.value } })}
-                                      className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
-                                    />
-                                  </div>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Maximum Capacity</label>
+                                <input
+                                  type="number"
+                                  value={serviceForm.metadata?.capacity || 100}
+                                  onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, capacity: e.target.value } })}
+                                  className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
+                                />
+                              </div>
+
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Service Staff Included</label>
+                                <div className="relative group/select">
+                                  <select
+                                    value={serviceForm.metadata?.staffIncluded || "yes"}
+                                    onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, staffIncluded: e.target.value } })}
+                                    className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
+                                  >
+                                    <option value="yes">Waiters & Servers Included</option>
+                                    <option value="no">Food Drop-off Only</option>
+                                  </select>
+                                  <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
                                 </div>
                               </div>
-                            )}
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Dietary Options</label>
+                                <input
+                                  value={serviceForm.metadata?.dietary || ""}
+                                  onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, dietary: e.target.value } })}
+                                  className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
+                                  placeholder="Vegan, Fasting (Tsom), Gluten-Free..."
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
 
-                            {/* AV / TECH SUPPORT */}
-                            {selectedSector === "event_organizer" && Array.isArray(serviceForm.category) && serviceForm.category.includes("av") && (
-                              <div className="col-span-full space-y-10 animate-fade-in p-8 rounded-[40px] bg-white border border-foreground/5 relative overflow-hidden group/av">
-                                <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary flex items-center gap-3">
-                                  <Monitor className="w-4 h-4" /> AV & Tech Intelligence
-                                </h5>
+                        {/* CORPORATE MEETING */}
+                        {selectedSector === "event_organizer" && Array.isArray(serviceForm.category) && serviceForm.category.includes("corporate") && (
+                          <div className="col-span-full space-y-10 animate-fade-in p-8 rounded-[40px] bg-white border border-foreground/5 relative overflow-hidden group/corporate">
+                            <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary flex items-center gap-3">
+                              <Briefcase className="w-4 h-4" /> Corporate Meeting Intelligence
+                            </h5>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Equipment Domain</label>
-                                    <input
-                                      value={serviceForm.metadata?.avEquipment || ""}
-                                      onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, avEquipment: e.target.value } })}
-                                      className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
-                                      placeholder="Sound Systems, LED Screens, Lighting Rigs..."
-                                    />
-                                  </div>
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">On-Site Technician Included</label>
-                                    <div className="relative group/select">
-                                      <select
-                                        value={serviceForm.metadata?.technicianIncluded || "yes"}
-                                        onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, technicianIncluded: e.target.value } })}
-                                        className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
-                                      >
-                                        <option value="yes">Yes, Dedicated Technician</option>
-                                        <option value="no">Equipment Drop-off Only</option>
-                                      </select>
-                                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
-                                    </div>
-                                  </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Meeting Format</label>
+                                <div className="relative group/select">
+                                  <select
+                                    value={serviceForm.metadata?.meetingFormat || "boardroom"}
+                                    onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, meetingFormat: e.target.value } })}
+                                    className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
+                                  >
+                                    <option value="boardroom">Boardroom</option>
+                                    <option value="seminar">Seminar / Workshop</option>
+                                    <option value="conference">Large Conference</option>
+                                  </select>
+                                  <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
                                 </div>
                               </div>
-                            )}
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Business Amenities Included</label>
+                                <input
+                                  value={serviceForm.metadata?.businessAmenities || ""}
+                                  onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, businessAmenities: e.target.value } })}
+                                  className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
+                                  placeholder="High-Speed Wi-Fi, Print Station, Whiteboards..."
+                                />
+                              </div>
 
-                            {/* ========================================== */}
-                            {/* RESTAURANT DETAILS */}
-                            {/* ========================================== */}
-                            
-                            {/* DINING & SEATING */}
-                            {selectedSector === "restaurant" && Array.isArray(serviceForm.category) && (serviceForm.category.includes("dining") || serviceForm.category.includes("seating")) && (
-                              <div className="col-span-full space-y-10 animate-fade-in p-8 rounded-[40px] bg-white border border-foreground/5 relative overflow-hidden group/rest-dining">
-                                <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary flex items-center gap-3">
-                                  <Utensils className="w-4 h-4" /> Dining & Seating Intelligence
-                                </h5>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Maximum Capacity</label>
+                                <input
+                                  type="number"
+                                  value={serviceForm.metadata?.capacity || 100}
+                                  onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, capacity: e.target.value } })}
+                                  className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Cuisine Identity</label>
-                                    <input
-                                      value={serviceForm.metadata?.cuisineIdentity || ""}
-                                      onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, cuisineIdentity: e.target.value } })}
-                                      className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
-                                      placeholder="Traditional Habesha, Italian Fusion..."
-                                    />
-                                  </div>
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Seating Experience</label>
-                                    <div className="relative group/select">
-                                      <select
-                                        value={serviceForm.metadata?.seatingType || "indoor"}
-                                        onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, seatingType: e.target.value } })}
-                                        className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
-                                      >
-                                        <option value="indoor">Main Dining Room</option>
-                                        <option value="outdoor">Patio / Garden</option>
-                                        <option value="private">Private VIP Room</option>
-                                        <option value="bar">Chef's Table / Bar</option>
-                                      </select>
-                                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
-                                    </div>
-                                  </div>
-                                  <div className="space-y-3 md:col-span-2">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Atmosphere / Vibe</label>
-                                    <input
-                                      value={serviceForm.metadata?.vibe || ""}
-                                      onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, vibe: e.target.value } })}
-                                      className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
-                                      placeholder="Romantic, Casual, Fine-Dining, High-Energy..."
-                                    />
-                                  </div>
+                        {/* AV / TECH SUPPORT */}
+                        {selectedSector === "event_organizer" && Array.isArray(serviceForm.category) && serviceForm.category.includes("av") && (
+                          <div className="col-span-full space-y-10 animate-fade-in p-8 rounded-[40px] bg-white border border-foreground/5 relative overflow-hidden group/av">
+                            <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary flex items-center gap-3">
+                              <Monitor className="w-4 h-4" /> AV & Tech Intelligence
+                            </h5>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Equipment Domain</label>
+                                <input
+                                  value={serviceForm.metadata?.avEquipment || ""}
+                                  onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, avEquipment: e.target.value } })}
+                                  className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
+                                  placeholder="Sound Systems, LED Screens, Lighting Rigs..."
+                                />
+                              </div>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">On-Site Technician Included</label>
+                                <div className="relative group/select">
+                                  <select
+                                    value={serviceForm.metadata?.technicianIncluded || "yes"}
+                                    onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, technicianIncluded: e.target.value } })}
+                                    className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
+                                  >
+                                    <option value="yes">Yes, Dedicated Technician</option>
+                                    <option value="no">Equipment Drop-off Only</option>
+                                  </select>
+                                  <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
                                 </div>
                               </div>
-                            )}
+                            </div>
+                          </div>
+                        )}
 
-                            {/* RESTAURANT PRIVATE EVENT & BAR */}
-                            {selectedSector === "restaurant" && Array.isArray(serviceForm.category) && (serviceForm.category.includes("event") || serviceForm.category.includes("bar")) && (
-                              <div className="col-span-full space-y-10 animate-fade-in p-8 rounded-[40px] bg-white border border-foreground/5 relative overflow-hidden group/rest-event">
-                                <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary flex items-center gap-3">
-                                  <GlassWater className="w-4 h-4" /> Lounge & Event Intelligence
-                                </h5>
+                        {/* ========================================== */}
+                        {/* RESTAURANT DETAILS */}
+                        {/* ========================================== */}
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Beverage Focus</label>
-                                    <input
-                                      value={serviceForm.metadata?.beverageFocus || ""}
-                                      onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, beverageFocus: e.target.value } })}
-                                      className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
-                                      placeholder="Signature Cocktails, Craft Beers, Wine Selection..."
-                                    />
-                                  </div>
-                                  <div className="space-y-3">
-                                    <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Private Hire Minimum Spend</label>
-                                    <input
-                                      type="number"
-                                      value={serviceForm.metadata?.minSpend || 0}
-                                      onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, minSpend: e.target.value } })}
-                                      className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
-                                      placeholder="Amount in your currency..."
-                                    />
-                                  </div>
+                        {/* DINING & SEATING */}
+                        {selectedSector === "restaurant" && Array.isArray(serviceForm.category) && (serviceForm.category.includes("dining") || serviceForm.category.includes("seating")) && (
+                          <div className="col-span-full space-y-10 animate-fade-in p-8 rounded-[40px] bg-white border border-foreground/5 relative overflow-hidden group/rest-dining">
+                            <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary flex items-center gap-3">
+                              <Utensils className="w-4 h-4" /> Dining & Seating Intelligence
+                            </h5>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Cuisine Identity</label>
+                                <input
+                                  value={serviceForm.metadata?.cuisineIdentity || ""}
+                                  onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, cuisineIdentity: e.target.value } })}
+                                  className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
+                                  placeholder="Traditional Habesha, Italian Fusion..."
+                                />
+                              </div>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Seating Experience</label>
+                                <div className="relative group/select">
+                                  <select
+                                    value={serviceForm.metadata?.seatingType || "indoor"}
+                                    onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, seatingType: e.target.value } })}
+                                    className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all appearance-none cursor-pointer pr-12"
+                                  >
+                                    <option value="indoor">Main Dining Room</option>
+                                    <option value="outdoor">Patio / Garden</option>
+                                    <option value="private">Private VIP Room</option>
+                                    <option value="bar">Chef's Table / Bar</option>
+                                  </select>
+                                  <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/20 group-hover/select:text-primary transition-colors pointer-events-none" />
                                 </div>
                               </div>
-                            )}
+                              <div className="space-y-3 md:col-span-2">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Atmosphere / Vibe</label>
+                                <input
+                                  value={serviceForm.metadata?.vibe || ""}
+                                  onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, vibe: e.target.value } })}
+                                  className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
+                                  placeholder="Romantic, Casual, Fine-Dining, High-Energy..."
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* RESTAURANT PRIVATE EVENT & BAR */}
+                        {selectedSector === "restaurant" && Array.isArray(serviceForm.category) && (serviceForm.category.includes("event") || serviceForm.category.includes("bar")) && (
+                          <div className="col-span-full space-y-10 animate-fade-in p-8 rounded-[40px] bg-white border border-foreground/5 relative overflow-hidden group/rest-event">
+                            <h5 className="text-xs font-black uppercase tracking-[0.4em] text-primary flex items-center gap-3">
+                              <GlassWater className="w-4 h-4" /> Lounge & Event Intelligence
+                            </h5>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Beverage Focus</label>
+                                <input
+                                  value={serviceForm.metadata?.beverageFocus || ""}
+                                  onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, beverageFocus: e.target.value } })}
+                                  className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
+                                  placeholder="Signature Cocktails, Craft Beers, Wine Selection..."
+                                />
+                              </div>
+                              <div className="space-y-3">
+                                <label className="text-[9px] font-black tracking-[0.3em] uppercase text-foreground/40 ml-4">Private Hire Minimum Spend</label>
+                                <input
+                                  type="number"
+                                  value={serviceForm.metadata?.minSpend || 0}
+                                  onChange={e => setServiceForm({ ...serviceForm, metadata: { ...serviceForm.metadata, minSpend: e.target.value } })}
+                                  className="w-full bg-foreground/[0.02] px-3 md:px-4 lg:px-5 py-4 rounded-2xl border border-foreground/5 font-bold text-sm outline-none focus:bg-white focus:ring-4 focus:ring-primary/5 transition-all"
+                                  placeholder="Amount in your currency..."
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
 
                         <div className="md:col-span-2 space-y-4 group">
                           <label className="text-sm font-black uppercase tracking-[0.3em] text-foreground/60 px-3 md:px-4 lg:px-5">Detailed Strategic Narrative</label>
