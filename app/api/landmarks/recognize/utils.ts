@@ -1,12 +1,13 @@
 export async function getImageEmbedding(bytes: ArrayBuffer): Promise<number[]> {
   const base64 = Buffer.from(bytes).toString("base64");
 
-  const response = await fetch(
-    `https://api.cloudflare.com/client/v4/accounts/${process.env.CF_ACCOUNT_ID}/ai/run/@cf/llava-hf/llava-1.5-7b-hf`,
+  // Step 1: Describe the image with LLaVA
+  const visionResponse = await fetch(
+    https://api.cloudflare.com/client/v4/accounts/${process.env.CF_ACCOUNT_ID}/ai/run/@cf/llava-hf/llava-1.5-7b-hf,
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.CF_API_TOKEN}`,
+        Authorization: Bearer ${process.env.CF_API_TOKEN},
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -17,31 +18,32 @@ export async function getImageEmbedding(bytes: ArrayBuffer): Promise<number[]> {
     }
   );
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`CF API error: ${response.status} — ${text}`);
-  }
+  const visionData = await visionResponse.json();
+  console.log("LLaVA response:", JSON.stringify(visionData)); // ← see the structure
 
-  const data = await response.json();
-  
-  // Convert text description to embedding using BGE
+  const description = visionData?.result?.response ?? visionData?.response ?? "";
+  if (!description) throw new Error("No description from vision model");
+
+  // Step 2: Embed the description
   const embedResponse = await fetch(
-    `https://api.cloudflare.com/client/v4/accounts/${process.env.CF_ACCOUNT_ID}/ai/run/@cf/baai/bge-large-en-v1.5`,
+    https://api.cloudflare.com/client/v4/accounts/${process.env.CF_ACCOUNT_ID}/ai/run/@cf/baai/bge-large-en-v1.5,
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.CF_API_TOKEN}`,
+        Authorization: Bearer ${process.env.CF_API_TOKEN},
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ text: data.result.response }),
+      body: JSON.stringify({ text: [description] }), // ← array format
     }
   );
 
   const embedData = await embedResponse.json();
-  console.log("BGE response:", JSON.stringify(embedData));
+  console.log("BGE response:", JSON.stringify(embedData)); // ← see the structure
+
   const embedding = embedData?.result?.data?.[0] ?? embedData?.data?.[0];
-  if (!embedding) throw new Error(`No embedding returned: ${JSON.stringify(embedData)}`);
-  return embedData.result.data[0];
+  if (!embedding) throw new Error(No embedding returned: ${JSON.stringify(embedData)});
+
+  return embedding;
 }
 
 export function cosineSimilarity(a: number[], b: number[]): number {
