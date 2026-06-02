@@ -233,15 +233,16 @@ export default function BusinessDashboardPage() {
       }
       if (svcData.services) setServices(svcData.services);
       const bookingEndpoints = [
-        { url: "/api/bookings/rooms", type: "room" },
-        { url: "/api/bookings/cars", type: "car" },
-        { url: "/api/bookings/tours", type: "tour" },
-        { url: "/api/bookings/events", type: "event" },
+        { url: "/api/bookings/byBusinessId/rooms", type: "room" },
+        { url: "/api/bookings/byBusinessId/cars", type: "car" },
+        { url: "/api/bookings/byBusinessId/tours", type: "tour" },
+        { url: "/api/bookings/byBusinessId/events", type: "event" },
       ];
 
       const bookingResults = await Promise.allSettled(
         bookingEndpoints.map(({ url }) => fetch(url).then(r => r.json()))
       );
+      console.log("Booking Results:", bookingResults);
       const allBookings: any[] = [];
       bookingResults.forEach((result, index) => {
         if (result.status === "fulfilled") {
