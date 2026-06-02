@@ -1,5 +1,6 @@
 // app/api/landmarks/recognize/utils.ts
 import { pipeline, RawImage } from "@xenova/transformers";
+import loadImage from 'canvas';
 
 let extractor: any;
 
@@ -15,10 +16,12 @@ export async function getExtractor() {
   return extractor;
 }
 
-export async function getImageEmbedding(image: ArrayBuffer): Promise<number[]> {
+xport async function getImageEmbedding(image: ArrayBuffer): Promise<number[]> {
   const ext = await getExtractor();
-  const blob = new Blob([image]);
-  const img = await RawImage.fromBlob(blob);
+
+  const buffer = Buffer.from(image); // Convert ArrayBuffer to Buffer
+  const img = await loadImage(buffer); // Load image using 'canvas'
+
   const output = await ext(img, { pooling: "mean", normalize: true });
   return Array.from(output.data as Float32Array);
 }
