@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 let extractor: any = null;
 let envReady = false;
 
-/
+/**
  * Initialize environment BEFORE pipeline loads
  */
 async function initEnv() {
@@ -30,7 +30,7 @@ async function initEnv() {
   envReady = true;
 }
 
-/
+/**
  * Load model lazily
  */
 export async function getExtractor() {
@@ -48,7 +48,7 @@ export async function getExtractor() {
   return extractor;
 }
 
-/
+/**
  * Convert image → embedding vector
  */
 export async function getImageEmbedding(buffer: ArrayBuffer): Promise<number[]> {
@@ -67,7 +67,7 @@ export async function getImageEmbedding(buffer: ArrayBuffer): Promise<number[]> 
   return Array.from(output.data as Float32Array);
 }
 
-/
+/**
  * Cosine similarity
  */
 export function cosineSimilarity(a: number[], b: number[]): number {
