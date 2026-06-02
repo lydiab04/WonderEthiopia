@@ -18,6 +18,20 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "All fields are required", data: body }, { status: 400 });
         }
 
+        const existingBooking = await EventBooking.findOne({
+  user_id,
+  event_id,
+  status: { $nin: ["cancelled", "rejected"] }, // allow rebooking if previously cancelled
+});
+
+if (existingBooking) {
+  return NextResponse.json(
+    { error: "You already have an active booking for this event." },
+    { status: 400 }
+  );
+}
+
+
         // 1.5 Capacity Check
         const service = await Service.findById(event_id);
         if (!service) {
