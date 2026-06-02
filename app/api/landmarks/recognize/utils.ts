@@ -37,9 +37,9 @@ export async function getExtractor() {
     const { pipeline } = await import("@xenova/transformers");
 
     extractor = await pipeline(
-      "feature-extraction",
-      "Xenova/all-MiniLM-L6-v2"
-    );
+  "feature-extraction",
+  "Xenova/clip-vit-base-patch32"
+);
   }
 
   return extractor;
@@ -53,13 +53,9 @@ export async function getImageEmbedding(buffer: ArrayBuffer): Promise<number[]> 
 
   const model = await getExtractor();
 
-  const blob = new Blob([buffer]);
-  const image = await RawImage.fromBlob(blob);
+  const image = await RawImage.fromBlob(new Blob([buffer]));
 
-  const output = await model(image, {
-    pooling: "mean",
-    normalize: true,
-  });
+  const output = await model(image);
 
   return Array.from(output.data as Float32Array);
 }
