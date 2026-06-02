@@ -18,6 +18,20 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "All fields are required" }, { status: 400 });
         }
 
+        // Check for existing booking by same user for same tour
+const existingBooking = await CarBooking.findOne({
+  user_id,
+  car_id,
+  status: { $nin: ["cancelled", "rejected"] }, // allow rebooking if previously cancelled
+});
+
+if (existingBooking) {
+  return NextResponse.json(
+    { error: "You already have an active booking for this car." },
+    { status: 400 }
+  );
+}
+
         const service = await Service.findById(car_id);
         if (!service || (service.availability?.quantity ?? 0) <= 0) {
             return NextResponse.json({ error: "This car is currently out of stock/unavailable" }, { status: 400 });
