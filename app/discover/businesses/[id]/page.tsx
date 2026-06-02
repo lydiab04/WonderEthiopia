@@ -761,9 +761,14 @@ export default function BusinessDetail() {
                   className="w-full bg-foreground/5 px-5 py-4 rounded-xl border border-foreground/5 text-sm font-bold"
                 >
                   <option value="">Select Reason...</option>
-                  <option value="misrepresentation">Inventory Misrepresentation</option>
-                  <option value="pricing_fraud">Inconsistent Pricing Matrix</option>
-                  <option value="operational_failure">Total Operational Default</option>
+                 
+      
+                  <option value="misconduct">Misconduct</option>
+                  <option value="fraudulent_behavior">Fraudulent Behavior</option>
+                  <option value="poor_service">Poor Service</option>
+                  <option value="false_information">False Information</option>
+                  <option value="safety_concern">Safety Concern</option>
+                  <option value="pricing_fraud">Pricing Fraud</option>
                   <option value="other">Other Structural Violation</option>
                 </select>
               </div>
