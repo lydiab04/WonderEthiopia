@@ -19,6 +19,7 @@ export async function GET(req: Request) {
     if (!imageUrl) { results.skipped++; continue; }
 
     try {
+      console.log(`Fetching: ${imageUrl}`); // ← inside try, correct spelling
       const response = await fetch(imageUrl, {
         headers: {
           Referer: new URL(imageUrl).origin,
@@ -26,18 +27,19 @@ export async function GET(req: Request) {
         },
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
       const buffer = await response.arrayBuffer();
-      landmark.embedding = await getImageEmbedding(buffer); // ← no RawImage needed
+      landmark.embedding = await getImageEmbedding(buffer);
       await landmark.save();
-
-      console.log(`✓ ${landmark.name} — dim: ${landmark.embedding.length}`);
+      console.log(` ${landmark.name} — dim: ${landmark.embedding.length}`);
       results.success++;
     } catch (e: any) {
-      console.error(`✗ ${landmark.name}: ${e.message}`);
+      console.error(` ${landmark.name}: ${e.message}`);
       results.failed++;
     }
   }
+
+  return NextResponse.json({ done: true, ...results });
+}
 
   return NextResponse.json({ done: true, ...results });
 }
