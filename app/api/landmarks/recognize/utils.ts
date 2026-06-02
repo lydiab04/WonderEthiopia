@@ -1,5 +1,5 @@
 import { pipeline } from "@xenova/transformers";
-import loadImage from 'canvas';
+import { loadImage } from 'canvas';
 
 let extractor: any;
 
