@@ -30,7 +30,7 @@ export async function initializePayment(
     },
     meta: {},
         callback_url: "https://webhook.site/077164d6-29cb-40df-ba29-8a00e59a7e60",
-        return_url: `${process.env.NEXT_PUBLIC_BASE_URL}/payment-success?trx_ref=${txRef}`,
+        return_url: `${process.env.NEXTAUTH_URL}/payment-success?trx_ref=${txRef}`,
         
     };
 
