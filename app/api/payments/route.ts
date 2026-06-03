@@ -34,7 +34,7 @@ export async function initializePayment(
         return_url: `${process.env.NEXTAUTH_URL}/payment-success?trx_ref=${txRef}`,
     };
 
-    console.log("🚀 SENDING TO CHAPA:", JSON.stringify(payload, null, 2));
+    console.log("SENDING TO CHAPA:", JSON.stringify(payload, null, 2));
 
     try {
         // Try the transactions endpoint if the singular one continues to give issues
@@ -50,7 +50,7 @@ export async function initializePayment(
         // If Chapa returns an error status code, handle it safely without crashing
         if (!response.ok) {
             const rawText = await response.text();
-            console.error(`❌ Chapa HTTP Error ${response.status}:`, rawText);
+            console.error(`Chapa HTTP Error ${response.status}:`, rawText);
             return {
                 status: "failed",
                 message: `Chapa responded with status ${response.status}: ${rawText.slice(0, 100)}`
@@ -58,11 +58,11 @@ export async function initializePayment(
         }
 
         const result = await response.json();
-        console.log("📥 CHAPA RESPONSE:", JSON.stringify(result, null, 2));
+        console.log(" CHAPA RESPONSE:", JSON.stringify(result, null, 2));
         return result; 
 
     } catch (fetchError: any) {
-        console.error("💥 Network/Parsing error while calling Chapa:", fetchError.message);
+        console.error(" Network/Parsing error while calling Chapa:", fetchError.message);
         return {
             status: "failed",
             message: `Failed to communicate with Chapa: ${fetchError.message}`
@@ -89,7 +89,7 @@ console.log("STATUS:", chapaResponse?.status);
         if (chapaResponse.status !== "success") {
             // Include the actual Chapa error message in the throw
             const errorMsg = chapaResponse.message || "Chapa rejected the transaction";
-            console.error("❌ Chapa Validation Error:", errorMsg);
+            console.error(" Chapa Validation Error:", errorMsg);
             throw new Error(errorMsg); 
         }
 
@@ -106,7 +106,7 @@ console.log("STATUS:", chapaResponse?.status);
 
     } catch (error: any) {
         // This ensures the error shows up clearly in your VS Code Terminal
-        console.error("‼️ Final registerPayment Error:", error.message);
+        console.error("‼ Final registerPayment Error:", error.message);
         throw error; 
     }
 }
