@@ -10,34 +10,49 @@ export async function GET(req: Request) {
   }
 
   await dbConnect();
- const landmarks = await Landmark.find().limit(1);
+  const landmarks = await Landmark.find();
   const results = { success: 0, failed: 0, skipped: 0 };
 
   for (const landmark of landmarks) {
-    const imageUrl = (landmark as any).gallery?.[0];
-    if (!imageUrl) {
+    const gallery: string[] = (landmark as any).gallery ?? [];
+    if (!gallery.length) {
       results.skipped++;
       continue;
     }
 
-    try {
-      console.log(`Fetching: ${imageUrl}`);
-      const response = await fetch(imageUrl, {
-        headers: {
-          Referer: new URL(imageUrl).origin,
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        },
-      });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const buffer = await response.arrayBuffer();
-      landmark.embedding = await getImageEmbedding(buffer);
-      await landmark.save();
-      console.log(`✓ ${landmark.name} — dim: ${landmark.embedding.length}`);
-      results.success++;
-    } catch (e: any) {
-      console.error(`✗ ${landmark.name}: ${e.message}`);
-      results.failed++;
+    const embeddings: number[][] = [];
+
+    for (const imageUrl of gallery) {
+      try {
+        console.log(`Fetching: ${imageUrl}`);
+        const response = await fetch(imageUrl, {
+          headers: {
+            Referer: new URL(imageUrl).origin,
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          },
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const buffer = await response.arrayBuffer();
+        const embedding = await getImageEmbedding(buffer);
+        embeddings.push(embedding);
+        console.log(`  ✓ ${imageUrl} — dim: ${embedding.length}`);
+      } catch (e: any) {
+        console.error(`  ✗ ${imageUrl}: ${e.message}`);
+      }
     }
+
+    if (embeddings.length === 0) {
+      results.failed++;
+      continue;
+    }
+
+    // Store all embeddings for this landmark
+    (landmark as any).embeddings = embeddings;
+    // Keep single embedding as the first one for backwards compat
+    landmark.embedding = embeddings[0];
+    await landmark.save();
+    console.log(`✓ ${landmark.name} — ${embeddings.length} embeddings saved`);
+    results.success++;
   }
 
   return NextResponse.json({ done: true, ...results });
@@ -66,15 +81,32 @@ export async function POST(req: Request) {
     console.log(`Image embedding dim: ${imageEmbedding.length}`);
 
     const landmarks = await Landmark.find({
-      embedding: { $exists: true, $not: { $size: 0 } },
+      $or: [
+        { embeddings: { $exists: true, $not: { $size: 0 } } },
+        { embedding: { $exists: true, $not: { $size: 0 } } },
+      ],
     });
     console.log(`Comparing against ${landmarks.length} landmarks`);
 
     const results = landmarks
       .map((l) => {
-        if (!l.embedding || !Array.isArray(l.embedding)) return null;
-        const similarity = cosineSimilarity(imageEmbedding, l.embedding);
-        return { ...l.toObject(), similarity, score: similarity };
+        const obj = l.toObject() as any;
+
+        // Use all embeddings if available, fall back to single embedding
+        const allEmbeddings: number[][] = obj.embeddings?.length
+          ? obj.embeddings
+          : obj.embedding
+          ? [obj.embedding]
+          : [];
+
+        if (!allEmbeddings.length) return null;
+
+        // Take the best similarity score across all images of this landmark
+        const similarity = Math.max(
+          ...allEmbeddings.map((e) => cosineSimilarity(imageEmbedding, e))
+        );
+
+        return { ...obj, similarity, score: similarity };
       })
       .filter(Boolean)
       .sort((a, b) => b!.similarity - a!.similarity);

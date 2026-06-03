@@ -45,7 +45,7 @@ const categoryImages: Record<string, string> = {
 };
 
 export default function DiscoverBusinesses() {
-  const [services, setServices] = useState<Service[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [category, setCategory] = useState("all");
@@ -71,7 +71,8 @@ export default function DiscoverBusinesses() {
         
         const json = await res.json();
         console.log(json);
-        const profile = json.user?.preferences?.categories || {};
+        const profile = json?.user?.preferences?.categories || {};
+        console.log(profile)
 
         const userPreferencesObj = {
           accommodationType: profile.accommodation_type,
@@ -101,63 +102,44 @@ export default function DiscoverBusinesses() {
   }, []);
 
   // 2. Fetch Services effect
-  useEffect(() => {
-    if (!preferencesLoaded) return;
+  // Replace the single services state with two:
+const [allRecommended, setAllRecommended] = useState<Service[]>([]);
+const [services, setServices] = useState<Service[]>([]);
 
-    async function fetchServices() {
-      try {
-        setLoading(true);
-        const params = new URLSearchParams({
-          search: searchQuery,
-          category: category,
-          region: region
-        });
-        
-        let res = null;
-        
-        if (preferences) {
-          console.log('case1: Using vector recommendations');
-          res = await fetch(`/api/business-recommendation?preferences=${encodeURIComponent(preferences)}&${params.toString()}`, {
-            method: 'GET'
-          });
-        } else {
-          console.log('case2: Using fallback default API layout');
-          const url = `/api/businesses/public?${params.toString()}`;
-          res = await fetch(url);
-        }
-        
-        if (!res.ok) {
-          throw new Error(`Server returned ${res.status}`);
-        }
-        
-        const data = await res.json();
+// Fetch ONLY when preferences change (expensive embedding call)
+useEffect(() => {
+  if (!preferencesLoaded) return;
 
-// Normalize: handle both array and wrapped { services: [] } / { businesses: [] } shapes
-const rawList = Array.isArray(data)
-  ? data
-  : Array.isArray(data.services)
-    ? data.services
-    : Array.isArray(data.businesses)
-      ? data.businesses
-      : [];
-
-const availableServices = rawList.filter(
-  (d: any) => d?.availability?.isAvailable === true
-);
-setServices(availableServices);
-      } catch (error) {
-        console.error("Failed to fetch services:", error);
-      } finally {
-        setLoading(false);
+  async function fetchServices() {
+    setLoading(true);
+    try {
+      let res;
+      if (preferences) {
+        res = await fetch(`/api/business-recommendation?preferences=${encodeURIComponent(preferences)}`);
+      } else {
+        res = await fetch(`/api/businesses/public`);
       }
+      const data = await res.json();
+      const rawList = Array.isArray(data) ? data
+        : Array.isArray(data.services) ? data.services
+        : Array.isArray(data.businesses) ? data.businesses : [];
+
+      const available = rawList.filter((d: any) => d?.availability?.isAvailable === true);
+      setAllRecommended(available); // cache the full recommended set
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
     }
+  }
 
-    const timer = setTimeout(() => {
-      fetchServices();
-    }, 500);
+  fetchServices();
+}, [preferences, preferencesLoaded]); // ← no search/category/region here
 
-    return () => clearTimeout(timer);
-  }, [searchQuery, category, region, preferences, preferencesLoaded]);
+// Filter locally whenever chips/search/region change
+useEffect(() => {
+  setServices(allRecommended); // filteredBusinesses memo already handles the rest
+}, [allRecommended]);
 
   const categories = [
     { label: "All Categories", value: "all", icon: <Box /> },
