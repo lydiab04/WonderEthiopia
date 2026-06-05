@@ -1,36 +1,247 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# WonderEthiopia
 
-## Getting Started
+WonderEthiopia is a web-based tourism discovery and management platform designed to connect tourists, local businesses, tourism managers, and system administrators. The platform enables users to discover destinations, explore tourism services, make reservations, receive personalized recommendations, submit reviews, and interact with tourism-related businesses across Ethiopia.
 
-First, run the development server:
+## Features
+
+### User Management and Authentication
+
+* User registration and login
+* Role-Based Access Control (RBAC)
+* Secure session management
+* Protected routes and permissions
+
+### Tourist Profile and Preferences
+
+* Manage personal profiles
+* Store travel preferences
+* Support personalized recommendations
+
+### Discovery and Reviews
+
+* Browse Ethiopian destinations
+* Search and filter destinations
+* View destination details
+* Explore tourism businesses
+* Submit reviews and ratings
+* View average ratings and feedback
+
+### Business Listing and Services
+
+* Create and manage business profiles
+* Add, update, and delete services
+* Upload service information, prices, and descriptions
+* Manage service availability
+
+### Booking and Reservations
+
+* Reserve hotels, tours, events, and transportation services
+* Booking confirmation and management
+* Payment integration using Chapa Sandbox
+
+### AI Recommendation and Landmark Recognition
+
+* Personalized destination recommendations
+* Landmark image recognition
+* AI-powered tourism assistance
+
+### Reporting and Administration
+
+* Submit reports regarding businesses and services
+* Business approval and moderation workflows
+* Administrative dashboards and monitoring tools
+
+---
+
+## Technology Stack
+
+### Frontend
+
+* Next.js (App Router)
+* React
+* TypeScript
+* Tailwind CSS
+
+### Backend
+
+* Next.js API Routes
+* Node.js
+
+### Database
+
+* MongoDB Atlas
+* Mongoose
+
+### Authentication
+
+* NextAuth.js
+
+### External Services
+
+* Chapa Payment Gateway
+* AI Recommendation Service
+* AI Landmark Recognition Service
+
+---
+
+## Project Structure
+
+```text
+wonder-eth/
+│
+├── app/
+│   ├── api/
+│   ├── destinations/
+│   ├── businesses/
+│   ├── bookings/
+│   └── reviews/
+│
+├── components/
+│
+├── lib/
+│   └── db.ts
+│
+├── models/
+│   ├── User.ts
+│   ├── Destination.ts
+│   ├── Business.ts
+│   ├── Service.ts
+│   ├── Booking.ts
+│   ├── Review.ts
+│   └── Report.ts
+│
+├── public/
+│
+├── styles/
+│
+└── package.json
+```
+
+---
+
+## Installation
+
+### Clone the Repository
+
+```bash
+git clone <repository-url>
+cd wonder-eth
+```
+
+### Install Dependencies
+
+```bash
+npm install
+```
+
+### Configure Environment Variables
+
+Create a `.env.local` file in the root directory and configure the following variables:
+
+```env
+MONGODB_URI=your_mongodb_connection_string
+NEXTAUTH_SECRET=your_secret_key
+NEXTAUTH_URL=http://localhost:3000
+
+# Additional service keys
+CHAPA_SECRET_KEY=your_key
+AI_SERVICE_API_KEY=your_key
+```
+
+### Run the Development Server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```text
+http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+in your browser.
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## Database Models
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Destination
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```text
+name
+description
+region
+city
+images
+rating
+created_at
+```
 
-## Deploy on Vercel
+### Business
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```text
+business_name
+type
+description
+region
+city
+rating
+created_at
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Review
+
+```text
+user_id
+target_id
+target_type
+rating
+comment
+created_at
+```
+
+The review system uses a polymorphic relationship that allows reviews to be attached to either destinations or businesses.
+
+---
+
+## Testing
+
+The project includes:
+
+* Functional Testing
+* Unit Testing
+* Integration Testing
+* System Testing
+* Security Testing
+* Performance Testing
+* Usability Testing
+
+Testing results and documentation are available in the project report.
+
+---
+
+## Future Improvements
+
+* Mobile application support
+* Multi-language support
+* Advanced AI recommendation models
+* Real-time notifications
+* Interactive maps and navigation
+* Tourism analytics dashboard
+
+---
+
+## Authors
+
+Addis Ababa University
+
+Department of Computer Science
+
+WonderEthiopia Development Team
+
+---
+
+## License
+
+This project was developed for academic purposes as a Final Year Project at Addis Ababa University.
